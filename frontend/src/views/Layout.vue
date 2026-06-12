@@ -138,6 +138,12 @@
             <a-menu-item key="carbon/factors">排放因子管理</a-menu-item>
           </a-sub-menu>
           
+          <a-sub-menu key="cost">
+            <template #icon><icon-dollar /></template>
+            <template #title>成本管理</template>
+            <a-menu-item key="cost/ledger">成本中心台账</a-menu-item>
+          </a-sub-menu>
+          
           <a-sub-menu key="document">
             <template #icon><icon-folder /></template>
             <template #title>资料管理</template>

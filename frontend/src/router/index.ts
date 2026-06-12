@@ -344,6 +344,21 @@ const router = createRouter({
             }
           ]
         },
+        // 成本管理
+        {
+          path: 'cost',
+          name: 'Cost',
+          redirect: '/cost/ledger',
+          meta: { title: '成本管理', icon: 'icon-dollar' },
+          children: [
+            {
+              path: 'ledger',
+              name: 'CostCenterLedger',
+              component: () => import('@/views/cost/CostCenterLedger.vue'),
+              meta: { title: '成本中心台账' }
+            }
+          ]
+        },
         // 资料管理
         {
           path: 'document',
