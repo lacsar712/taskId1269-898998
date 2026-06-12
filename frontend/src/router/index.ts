@@ -299,6 +299,27 @@ const router = createRouter({
             }
           ]
         },
+        // 碳排放核算
+        {
+          path: 'carbon',
+          name: 'Carbon',
+          redirect: '/carbon/accounting',
+          meta: { title: '碳排放核算', icon: 'icon-thunderbolt' },
+          children: [
+            {
+              path: 'accounting',
+              name: 'CarbonAccounting',
+              component: () => import('@/views/carbon/CarbonAccounting.vue'),
+              meta: { title: '碳排放总览' }
+            },
+            {
+              path: 'factors',
+              name: 'EmissionFactorManagement',
+              component: () => import('@/views/carbon/EmissionFactorManagement.vue'),
+              meta: { title: '排放因子管理' }
+            }
+          ]
+        },
         // 资料管理
         {
           path: 'document',

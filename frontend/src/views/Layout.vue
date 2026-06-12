@@ -129,6 +129,13 @@
             <a-menu-item key="energy/report">能耗报表</a-menu-item>
           </a-sub-menu>
           
+          <a-sub-menu key="carbon">
+            <template #icon><icon-thunderbolt /></template>
+            <template #title>碳排放核算</template>
+            <a-menu-item key="carbon/accounting">碳排放总览</a-menu-item>
+            <a-menu-item key="carbon/factors">排放因子管理</a-menu-item>
+          </a-sub-menu>
+          
           <a-sub-menu key="document">
             <template #icon><icon-folder /></template>
             <template #title>资料管理</template>

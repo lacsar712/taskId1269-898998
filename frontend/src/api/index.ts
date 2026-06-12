@@ -197,6 +197,22 @@ export const messageApi = {
   delete: (id: number) => request.delete(`/messages/${id}`)
 }
 
+// 碳排放核算接口
+export const carbonApi = {
+  getSummary: (year?: number) => request.get('/carbon/summary', { params: { year } }),
+  getMonthlyData: (year?: number) => request.get('/carbon/monthly', { params: { year } }),
+  getSourceContribution: (year?: number) => request.get('/carbon/source-contribution', { params: { year } }),
+  getYearOverYear: (year?: number) => request.get('/carbon/year-over-year', { params: { year } }),
+  getEmissionFactors: () => request.get('/carbon/factors'),
+  updateEmissionFactor: (id: number, data: any) => request.put(`/carbon/factors/${id}`, data),
+  createEmissionFactor: (data: any) => request.post('/carbon/factors', data),
+  deleteEmissionFactor: (id: number) => request.delete(`/carbon/factors/${id}`),
+  getActivityData: (params?: any) => request.get('/carbon/activity-data', { params }),
+  saveActivityData: (data: any) => request.post('/carbon/activity-data', data),
+  getReductionTarget: (year?: number) => request.get('/carbon/reduction-target', { params: { year } }),
+  updateReductionTarget: (data: any) => request.put('/carbon/reduction-target', data)
+}
+
 // 现场数据填报接口
 export const fieldDataApi = {
   getTemplates: (params?: any) => request.get('/field-data/templates', { params }),
