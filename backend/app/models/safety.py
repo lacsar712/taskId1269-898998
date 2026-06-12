@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Text, Date, JSON
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -153,3 +153,41 @@ class VideoInspectionRecord(Base):
     handle_status = Column(String(20), default="pending")  # pending, handling, resolved, closed
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class EmergencyDrill(Base):
+    """应急演练"""
+    __tablename__ = "emergency_drills"
+
+    id = Column(Integer, primary_key=True, index=True)
+    drill_no = Column(String(50), unique=True, nullable=False)
+    drill_name = Column(String(200), nullable=False)
+    drill_type = Column(String(50))  # 消防演练、泄漏演练、停电演练等
+    location = Column(String(200))
+    start_time = Column(DateTime)
+    end_time = Column(DateTime)
+    expected_teams = Column(JSON)  # 预期参与班组列表JSON [{"team_id":1,"team_name":"甲班","expected_count":10}]
+    check_in_code = Column(String(20), unique=True)  # 签到码
+    check_in_token = Column(String(64), unique=True)  # 签到链接token
+    organizer_id = Column(Integer)
+    organizer_name = Column(String(50))
+    description = Column(Text)
+    status = Column(String(20), default="draft")  # draft, ongoing, ended
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class DrillCheckIn(Base):
+    """演练签到记录"""
+    __tablename__ = "drill_check_ins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    drill_id = Column(Integer, nullable=False, index=True)
+    participant_name = Column(String(50), nullable=False)
+    team_id = Column(Integer)
+    team_name = Column(String(50))
+    check_in_time = Column(DateTime, server_default=func.now())
+    check_in_type = Column(String(20), default="code")  # code, link
+    ip_address = Column(String(50))
+    user_agent = Column(String(500))
+    created_at = Column(DateTime, server_default=func.now())

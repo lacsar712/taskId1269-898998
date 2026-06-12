@@ -389,4 +389,66 @@ CREATE TABLE `field_data_record_values` (
   CONSTRAINT `fk_value_field` FOREIGN KEY (`field_id`) REFERENCES `field_data_template_fields` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='填报记录数据值表';
 
+-- ----------------------------
+-- 应急演练表
+-- ----------------------------
+DROP TABLE IF EXISTS `emergency_drills`;
+CREATE TABLE `emergency_drills` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `drill_no` varchar(50) NOT NULL COMMENT '演练编号',
+  `drill_name` varchar(200) NOT NULL COMMENT '演练名称',
+  `drill_type` varchar(50) DEFAULT NULL COMMENT '演练类型：消防演练/泄漏演练/停电演练等',
+  `location` varchar(200) DEFAULT NULL COMMENT '演练地点',
+  `start_time` datetime DEFAULT NULL COMMENT '开始时间',
+  `end_time` datetime DEFAULT NULL COMMENT '结束时间',
+  `expected_teams` json DEFAULT NULL COMMENT '预期参与班组列表JSON',
+  `check_in_code` varchar(20) DEFAULT NULL COMMENT '6位签到码',
+  `check_in_token` varchar(64) DEFAULT NULL COMMENT '签到链接Token',
+  `organizer_id` int DEFAULT NULL COMMENT '组织人ID',
+  `organizer_name` varchar(50) DEFAULT NULL COMMENT '组织人姓名',
+  `description` text COMMENT '演练描述',
+  `status` varchar(20) DEFAULT 'draft' COMMENT '状态：draft草稿/ongoing进行中/ended已结束',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_drill_no` (`drill_no`),
+  UNIQUE KEY `uk_check_in_code` (`check_in_code`),
+  UNIQUE KEY `uk_check_in_token` (`check_in_token`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应急演练表';
+
+-- 初始化演练数据
+INSERT INTO `emergency_drills` (`drill_no`, `drill_name`, `drill_type`, `location`, `start_time`, `end_time`, `expected_teams`, `check_in_code`, `check_in_token`, `organizer_id`, `organizer_name`, `description`, `status`) VALUES
+('DR202606130001', '2026年度消防安全应急演练', '消防演练', '厂区主干道及消防集合点', '2026-06-20 09:00:00', '2026-06-20 11:30:00', '[{"team_id": 1, "team_name": "运行甲班", "expected_count": 12}, {"team_id": 2, "team_name": "运行乙班", "expected_count": 12}, {"team_id": 3, "team_name": "维修班", "expected_count": 8}, {"team_id": 4, "team_name": "化验班", "expected_count": 6}]', '384721', 'drill_token_demo_001_a1b2c3', 1, '系统管理员', '模拟火灾场景，检验应急预案有效性及人员疏散能力', 'draft'),
+('DR202606130002', '化学品泄漏应急处置演练', '泄漏演练', '加药间及应急处置区域', '2026-06-15 14:00:00', '2026-06-15 16:00:00', '[{"team_id": 3, "team_name": "维修班", "expected_count": 8}, {"team_id": 5, "team_name": "安全环保班", "expected_count": 5}]', '756291', 'drill_token_demo_002_d4e5f6', 1, '系统管理员', '模拟PAC药剂储罐泄漏应急处置', 'ongoing');
+
+-- ----------------------------
+-- 演练签到记录表
+-- ----------------------------
+DROP TABLE IF EXISTS `drill_check_ins`;
+CREATE TABLE `drill_check_ins` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `drill_id` int NOT NULL COMMENT '演练ID',
+  `participant_name` varchar(50) NOT NULL COMMENT '签到人姓名',
+  `team_id` int DEFAULT NULL COMMENT '班组ID',
+  `team_name` varchar(50) DEFAULT NULL COMMENT '班组名称',
+  `check_in_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '签到时间',
+  `check_in_type` varchar(20) DEFAULT 'code' COMMENT '签到方式：code签到码/link链接',
+  `ip_address` varchar(50) DEFAULT NULL COMMENT '签到IP地址',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT '签到设备信息',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_drill_id` (`drill_id`),
+  KEY `idx_check_in_time` (`check_in_time`),
+  KEY `idx_participant` (`drill_id`, `participant_name`, `team_name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='演练签到记录表';
+
+-- 初始化签到记录示例数据（对应 ongoing 状态的化学品泄漏演练）
+INSERT INTO `drill_check_ins` (`drill_id`, `participant_name`, `team_id`, `team_name`, `check_in_time`, `check_in_type`) VALUES
+(2, '李建国', 3, '维修班', '2026-06-15 13:55:00', 'code'),
+(2, '王志强', 3, '维修班', '2026-06-15 13:56:00', 'code'),
+(2, '刘晓燕', 3, '维修班', '2026-06-15 13:57:00', 'code'),
+(2, '张伟', 5, '安全环保班', '2026-06-15 13:58:00', 'code'),
+(2, '陈敏', 5, '安全环保班', '2026-06-15 13:59:00', 'link');
+
 SET FOREIGN_KEY_CHECKS = 1;

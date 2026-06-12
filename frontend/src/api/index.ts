@@ -240,3 +240,20 @@ export const videoInspectionApi = {
   updateHandleStatus: (id: number, data: any) => request.put(`/safety/video-inspection/records/${id}/handle-status`, data),
   getStatistics: () => request.get('/safety/video-inspection/statistics')
 }
+
+// 应急演练签到接口
+export const drillApi = {
+  getList: (params?: any) => request.get('/safety/drills', { params }),
+  getDetail: (id: number) => request.get(`/safety/drills/${id}`),
+  create: (data: any) => request.post('/safety/drills', data),
+  update: (id: number, data: any) => request.put(`/safety/drills/${id}`, data),
+  delete: (id: number) => request.delete(`/safety/drills/${id}`),
+  start: (id: number) => request.post(`/safety/drills/${id}/start`),
+  end: (id: number) => request.post(`/safety/drills/${id}/end`),
+  refreshCode: (id: number) => request.post(`/safety/drills/${id}/refresh-code`),
+  getCheckIns: (id: number, params?: any) => request.get(`/safety/drills/${id}/check-ins`, { params }),
+  export: (id: number) => request.get(`/safety/drills/${id}/export`),
+  getStatistics: () => request.get('/safety/drills/statistics/summary'),
+  getPublicDrill: (token: string) => request.get(`/safety/drills/public/${token}`),
+  checkIn: (data: any) => request.post('/safety/drills/check-in', data)
+}

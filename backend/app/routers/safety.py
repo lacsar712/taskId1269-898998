@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime, date
+from typing import List, Optional, Any
+from datetime import datetime, date, timedelta
 from pydantic import BaseModel
+import uuid
+import secrets
 from app.database import get_db
 from app.models.user import User
 from app.models.safety import (
     InspectionPlan, InspectionRecord, RiskPoint, EmergencyPlan, SafetyTraining, WorkPermit,
-    VideoCameraPoint, VideoInspectionRecord
+    VideoCameraPoint, VideoInspectionRecord, EmergencyDrill, DrillCheckIn
 )
-from sqlalchemy import desc, and_
+from sqlalchemy import desc, and_, func
 from app.schemas.common import PaginatedResponse, MessageResponse
 from app.services.auth import get_current_active_user
 
@@ -985,4 +987,576 @@ def init_default_video_camera_points(db: Session):
                 handle_status=handle_status
             )
             db.add(record)
+    db.commit()
+
+
+# ==================== 应急演练签到 ====================
+
+class ExpectedTeam(BaseModel):
+    team_id: Optional[int] = None
+    team_name: str
+    expected_count: int = 0
+
+
+class DrillResponse(BaseModel):
+    id: int
+    drill_no: str
+    drill_name: str
+    drill_type: Optional[str]
+    location: Optional[str]
+    start_time: Optional[datetime]
+    end_time: Optional[datetime]
+    expected_teams: Optional[Any]
+    check_in_code: Optional[str]
+    check_in_token: Optional[str]
+    organizer_id: Optional[int]
+    organizer_name: Optional[str]
+    description: Optional[str]
+    status: str
+    created_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class DrillDetailResponse(DrillResponse):
+    check_in_count: int = 0
+    expected_count: int = 0
+    attendance_rate: float = 0.0
+    check_ins: List[dict] = []
+
+
+class DrillCreate(BaseModel):
+    drill_name: str
+    drill_type: Optional[str] = None
+    location: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    expected_teams: List[ExpectedTeam] = []
+    description: Optional[str] = None
+
+
+class DrillUpdate(BaseModel):
+    drill_name: Optional[str] = None
+    drill_type: Optional[str] = None
+    location: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    expected_teams: Optional[List[ExpectedTeam]] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+
+
+class CheckInCreate(BaseModel):
+    participant_name: str
+    team_name: Optional[str] = None
+    team_id: Optional[int] = None
+    check_in_code: Optional[str] = None
+    drill_token: Optional[str] = None
+
+
+class CheckInResponse(BaseModel):
+    id: int
+    drill_id: int
+    participant_name: str
+    team_id: Optional[int]
+    team_name: Optional[str]
+    check_in_time: Optional[datetime]
+    check_in_type: Optional[str]
+
+    class Config:
+        from_attributes = True
+
+
+def _generate_check_in_code() -> str:
+    while True:
+        code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+        return code
+
+
+def _generate_check_in_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+@router.get("/drills", response_model=PaginatedResponse[DrillResponse])
+def get_drills(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    status: Optional[str] = None,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = db.query(EmergencyDrill)
+    if status:
+        query = query.filter(EmergencyDrill.status == status)
+    if keyword:
+        query = query.filter(
+            (EmergencyDrill.drill_name.like(f"%{keyword}%")) |
+            (EmergencyDrill.drill_no.like(f"%{keyword}%"))
+        )
+
+    total = query.count()
+    items = query.order_by(desc(EmergencyDrill.created_at)).offset((page - 1) * page_size).limit(page_size).all()
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size
+    )
+
+
+@router.get("/drills/{drill_id}", response_model=DrillDetailResponse)
+def get_drill_detail(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+
+    check_ins = db.query(DrillCheckIn).filter(DrillCheckIn.drill_id == drill_id).order_by(desc(DrillCheckIn.check_in_time)).all()
+    check_in_count = len(check_ins)
+
+    expected_count = 0
+    if drill.expected_teams and isinstance(drill.expected_teams, list):
+        for t in drill.expected_teams:
+            expected_count += t.get("expected_count", 0) or 0
+
+    attendance_rate = round((check_in_count / expected_count * 100), 2) if expected_count > 0 else 0.0
+
+    check_in_list = [
+        {
+            "id": c.id,
+            "participant_name": c.participant_name,
+            "team_id": c.team_id,
+            "team_name": c.team_name,
+            "check_in_time": c.check_in_time,
+            "check_in_type": c.check_in_type
+        }
+        for c in check_ins
+    ]
+
+    return DrillDetailResponse(
+        id=drill.id,
+        drill_no=drill.drill_no,
+        drill_name=drill.drill_name,
+        drill_type=drill.drill_type,
+        location=drill.location,
+        start_time=drill.start_time,
+        end_time=drill.end_time,
+        expected_teams=drill.expected_teams,
+        check_in_code=drill.check_in_code,
+        check_in_token=drill.check_in_token,
+        organizer_id=drill.organizer_id,
+        organizer_name=drill.organizer_name,
+        description=drill.description,
+        status=drill.status,
+        created_at=drill.created_at,
+        check_in_count=check_in_count,
+        expected_count=expected_count,
+        attendance_rate=attendance_rate,
+        check_ins=check_in_list
+    )
+
+
+@router.post("/drills", response_model=DrillResponse)
+def create_drill(
+    data: DrillCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill_no = f"DR{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    check_in_code = _generate_check_in_code()
+    check_in_token = _generate_check_in_token()
+
+    teams_data = [t.model_dump() for t in data.expected_teams] if data.expected_teams else []
+
+    drill = EmergencyDrill(
+        drill_no=drill_no,
+        drill_name=data.drill_name,
+        drill_type=data.drill_type,
+        location=data.location,
+        start_time=data.start_time,
+        end_time=data.end_time,
+        expected_teams=teams_data,
+        check_in_code=check_in_code,
+        check_in_token=check_in_token,
+        organizer_id=current_user.id,
+        organizer_name=current_user.real_name or current_user.username,
+        description=data.description,
+        status="draft"
+    )
+    db.add(drill)
+    db.commit()
+    db.refresh(drill)
+    return drill
+
+
+@router.put("/drills/{drill_id}", response_model=DrillResponse)
+def update_drill(
+    drill_id: int,
+    data: DrillUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+
+    update_data = data.model_dump(exclude_unset=True)
+    if "expected_teams" in update_data and update_data["expected_teams"] is not None:
+        teams_data = [t.model_dump() if hasattr(t, 'model_dump') else t for t in update_data["expected_teams"]]
+        update_data["expected_teams"] = teams_data
+
+    for key, value in update_data.items():
+        setattr(drill, key, value)
+
+    db.commit()
+    db.refresh(drill)
+    return drill
+
+
+@router.post("/drills/{drill_id}/start", response_model=MessageResponse)
+def start_drill(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+    drill.status = "ongoing"
+    db.commit()
+    return MessageResponse(message="演练已开始，签到入口已开启")
+
+
+@router.post("/drills/{drill_id}/end", response_model=MessageResponse)
+def end_drill(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+    drill.status = "ended"
+    db.commit()
+    return MessageResponse(message="演练已结束，签到入口已关闭")
+
+
+@router.delete("/drills/{drill_id}", response_model=MessageResponse)
+def delete_drill(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+    db.delete(drill)
+    db.query(DrillCheckIn).filter(DrillCheckIn.drill_id == drill_id).delete()
+    db.commit()
+    return MessageResponse(message="删除成功")
+
+
+@router.post("/drills/{drill_id}/refresh-code", response_model=DrillResponse)
+def refresh_check_in_code(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+    drill.check_in_code = _generate_check_in_code()
+    drill.check_in_token = _generate_check_in_token()
+    db.commit()
+    db.refresh(drill)
+    return drill
+
+
+@router.get("/drills/{drill_id}/check-ins", response_model=PaginatedResponse[CheckInResponse])
+def get_drill_check_ins(
+    drill_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    team_name: Optional[str] = None,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+
+    query = db.query(DrillCheckIn).filter(DrillCheckIn.drill_id == drill_id)
+    if team_name:
+        query = query.filter(DrillCheckIn.team_name == team_name)
+    if keyword:
+        query = query.filter(DrillCheckIn.participant_name.like(f"%{keyword}%"))
+
+    total = query.count()
+    items = query.order_by(desc(DrillCheckIn.check_in_time)).offset((page - 1) * page_size).limit(page_size).all()
+
+    return PaginatedResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size
+    )
+
+
+@router.get("/drills/{drill_id}/export")
+def export_drill_check_ins(
+    drill_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.id == drill_id).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="演练不存在")
+
+    check_ins = db.query(DrillCheckIn).filter(DrillCheckIn.drill_id == drill_id).order_by(DrillCheckIn.check_in_time).all()
+
+    expected_count = 0
+    team_stats = {}
+    if drill.expected_teams and isinstance(drill.expected_teams, list):
+        for t in drill.expected_teams:
+            tname = t.get("team_name", "")
+            team_stats[tname] = {"expected": t.get("expected_count", 0), "actual": 0}
+            expected_count += t.get("expected_count", 0) or 0
+
+    rows = []
+    for idx, c in enumerate(check_ins, 1):
+        if c.team_name in team_stats:
+            team_stats[c.team_name]["actual"] += 1
+        rows.append({
+            "序号": idx,
+            "姓名": c.participant_name,
+            "班组": c.team_name or "-",
+            "签到时间": c.check_in_time.strftime("%Y-%m-%d %H:%M:%S") if c.check_in_time else "",
+            "签到方式": "签到码" if c.check_in_type == "code" else "签到链接"
+        })
+
+    summary = [
+        {"项目": "演练名称", "值": drill.drill_name},
+        {"项目": "演练编号", "值": drill.drill_no},
+        {"项目": "演练类型", "值": drill.drill_type or "-"},
+        {"项目": "演练地点", "值": drill.location or "-"},
+        {"项目": "开始时间", "值": drill.start_time.strftime("%Y-%m-%d %H:%M:%S") if drill.start_time else "-"},
+        {"项目": "结束时间", "值": drill.end_time.strftime("%Y-%m-%d %H:%M:%S") if drill.end_time else "-"},
+        {"项目": "组织人", "值": drill.organizer_name or "-"},
+        {"项目": "预期参与人数", "值": expected_count},
+        {"项目": "实际签到人数", "值": len(check_ins)},
+        {"项目": "到场率", "值": f"{round((len(check_ins) / expected_count * 100), 2) if expected_count > 0 else 0}%"}
+    ]
+
+    team_summary_rows = []
+    for tname, stats in team_stats.items():
+        rate = round((stats["actual"] / stats["expected"] * 100), 2) if stats["expected"] > 0 else 0
+        team_summary_rows.append({
+            "班组": tname,
+            "预期人数": stats["expected"],
+            "实际签到": stats["actual"],
+            "到场率": f"{rate}%"
+        })
+
+    return {
+        "drill_info": summary,
+        "team_summary": team_summary_rows,
+        "check_in_records": rows
+    }
+
+
+@router.get("/drills/public/{token}")
+def get_drill_public(
+    token: str,
+    db: Session = Depends(get_db)
+):
+    drill = db.query(EmergencyDrill).filter(EmergencyDrill.check_in_token == token).first()
+    if not drill:
+        raise HTTPException(status_code=404, detail="签到链接无效")
+    if drill.status != "ongoing":
+        return {
+            "id": drill.id,
+            "drill_name": drill.drill_name,
+            "drill_type": drill.drill_type,
+            "location": drill.location,
+            "start_time": drill.start_time,
+            "end_time": drill.end_time,
+            "status": drill.status,
+            "can_check_in": False,
+            "message": "签到入口已关闭"
+        }
+
+    teams = []
+    if drill.expected_teams and isinstance(drill.expected_teams, list):
+        teams = [{"team_id": t.get("team_id"), "team_name": t.get("team_name")} for t in drill.expected_teams]
+
+    return {
+        "id": drill.id,
+        "drill_name": drill.drill_name,
+        "drill_type": drill.drill_type,
+        "location": drill.location,
+        "start_time": drill.start_time,
+        "end_time": drill.end_time,
+        "status": drill.status,
+        "can_check_in": True,
+        "teams": teams
+    }
+
+
+@router.post("/drills/check-in", response_model=MessageResponse)
+async def drill_check_in(
+    data: CheckInCreate,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    drill = None
+    check_in_type = "code"
+
+    if data.drill_token:
+        drill = db.query(EmergencyDrill).filter(EmergencyDrill.check_in_token == data.drill_token).first()
+        check_in_type = "link"
+    elif data.check_in_code:
+        drill = db.query(EmergencyDrill).filter(EmergencyDrill.check_in_code == data.check_in_code).first()
+        check_in_type = "code"
+
+    if not drill:
+        raise HTTPException(status_code=400, detail="签到码或链接无效")
+    if drill.status != "ongoing":
+        raise HTTPException(status_code=400, detail="签到入口已关闭")
+
+    existing = db.query(DrillCheckIn).filter(
+        DrillCheckIn.drill_id == drill.id,
+        DrillCheckIn.participant_name == data.participant_name,
+        DrillCheckIn.team_name == (data.team_name or "")
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="您已完成签到，请勿重复签到")
+
+    client_ip = request.client.host if request.client else ""
+    user_agent = request.headers.get("user-agent", "")[:500]
+
+    check_in = DrillCheckIn(
+        drill_id=drill.id,
+        participant_name=data.participant_name,
+        team_id=data.team_id,
+        team_name=data.team_name,
+        check_in_type=check_in_type,
+        ip_address=client_ip,
+        user_agent=user_agent
+    )
+    db.add(check_in)
+    db.commit()
+
+    return MessageResponse(message=f"{data.participant_name} 签到成功！")
+
+
+@router.get("/drills/statistics/summary")
+def get_drill_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    total_drills = db.query(EmergencyDrill).count()
+    ongoing_drills = db.query(EmergencyDrill).filter(EmergencyDrill.status == "ongoing").count()
+    ended_drills = db.query(EmergencyDrill).filter(EmergencyDrill.status == "ended").count()
+    draft_drills = db.query(EmergencyDrill).filter(EmergencyDrill.status == "draft").count()
+    total_check_ins = db.query(DrillCheckIn).count()
+
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_check_ins = db.query(DrillCheckIn).filter(DrillCheckIn.created_at >= today_start).count()
+
+    return {
+        "total_drills": total_drills,
+        "ongoing_drills": ongoing_drills,
+        "ended_drills": ended_drills,
+        "draft_drills": draft_drills,
+        "total_check_ins": total_check_ins,
+        "today_check_ins": today_check_ins
+    }
+
+
+def init_default_drills(db: Session):
+    count = db.query(EmergencyDrill).count()
+    if count > 0:
+        return
+
+    sample_drills = [
+        {
+            "drill_name": "2026年度消防安全应急演练",
+            "drill_type": "消防演练",
+            "location": "厂区主干道及消防集合点",
+            "start_time": datetime(2026, 6, 20, 9, 0, 0),
+            "end_time": datetime(2026, 6, 20, 11, 30, 0),
+            "expected_teams": [
+                {"team_id": 1, "team_name": "运行甲班", "expected_count": 12},
+                {"team_id": 2, "team_name": "运行乙班", "expected_count": 12},
+                {"team_id": 3, "team_name": "维修班", "expected_count": 8},
+                {"team_id": 4, "team_name": "化验班", "expected_count": 6}
+            ],
+            "description": "模拟火灾场景，检验应急预案有效性及人员疏散能力",
+            "status": "draft"
+        },
+        {
+            "drill_name": "化学品泄漏应急处置演练",
+            "drill_type": "泄漏演练",
+            "location": "加药间及应急处置区域",
+            "start_time": datetime(2026, 6, 15, 14, 0, 0),
+            "end_time": datetime(2026, 6, 15, 16, 0, 0),
+            "expected_teams": [
+                {"team_id": 3, "team_name": "维修班", "expected_count": 8},
+                {"team_id": 5, "team_name": "安全环保班", "expected_count": 5}
+            ],
+            "description": "模拟PAC药剂储罐泄漏应急处置",
+            "status": "ongoing"
+        }
+    ]
+
+    for i, d in enumerate(sample_drills):
+        drill_no = f"DR{datetime.now().strftime('%Y%m%d')}{str(i+1).zfill(4)}"
+        check_in_code = ''.join([str(secrets.randbelow(10)) for _ in range(6)])
+        check_in_token = secrets.token_urlsafe(32)
+
+        drill = EmergencyDrill(
+            drill_no=drill_no,
+            drill_name=d["drill_name"],
+            drill_type=d["drill_type"],
+            location=d["location"],
+            start_time=d["start_time"],
+            end_time=d["end_time"],
+            expected_teams=d["expected_teams"],
+            check_in_code=check_in_code,
+            check_in_token=check_in_token,
+            organizer_id=1,
+            organizer_name="系统管理员",
+            description=d["description"],
+            status=d["status"]
+        )
+        db.add(drill)
+        db.flush()
+
+        if d["status"] == "ongoing":
+            sample_checkins = [
+                {"participant_name": "李建国", "team_name": "维修班", "check_in_time": datetime(2026, 6, 15, 13, 55, 0)},
+                {"participant_name": "王志强", "team_name": "维修班", "check_in_time": datetime(2026, 6, 15, 13, 56, 0)},
+                {"participant_name": "刘晓燕", "team_name": "维修班", "check_in_time": datetime(2026, 6, 15, 13, 57, 0)},
+                {"participant_name": "张伟", "team_name": "安全环保班", "check_in_time": datetime(2026, 6, 15, 13, 58, 0)},
+                {"participant_name": "陈敏", "team_name": "安全环保班", "check_in_time": datetime(2026, 6, 15, 13, 59, 0)}
+            ]
+            for ci in sample_checkins:
+                check_in = DrillCheckIn(
+                    drill_id=drill.id,
+                    participant_name=ci["participant_name"],
+                    team_name=ci["team_name"],
+                    check_in_time=ci["check_in_time"],
+                    check_in_type="code"
+                )
+                db.add(check_in)
+
     db.commit()

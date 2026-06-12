@@ -83,6 +83,7 @@
             <a-menu-item key="safety/video-inspection">视频巡检点位</a-menu-item>
             <a-menu-item key="safety/risk">风险管控</a-menu-item>
             <a-menu-item key="safety/emergency">应急管理</a-menu-item>
+            <a-menu-item key="safety/drill">应急演练签到</a-menu-item>
             <a-menu-item key="safety/training">安全培训</a-menu-item>
             <a-menu-item key="safety/permit">作业许可</a-menu-item>
           </a-sub-menu>

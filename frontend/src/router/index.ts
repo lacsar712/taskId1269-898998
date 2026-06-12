@@ -10,6 +10,12 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
+      path: '/drill/check-in/:token',
+      name: 'DrillCheckInPublic',
+      component: () => import('@/views/safety/DrillCheckIn.vue'),
+      meta: { requiresAuth: false, hidden: true }
+    },
+    {
       path: '/',
       component: () => import('@/views/Layout.vue'),
       redirect: '/dashboard',
@@ -122,6 +128,12 @@ const router = createRouter({
               name: 'WorkPermit',
               component: () => import('@/views/safety/WorkPermit.vue'),
               meta: { title: '作业许可' }
+            },
+            {
+              path: 'drill',
+              name: 'DrillManagement',
+              component: () => import('@/views/safety/DrillManagement.vue'),
+              meta: { title: '应急演练签到' }
             },
             {
               path: 'video-inspection',
