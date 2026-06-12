@@ -5,7 +5,7 @@ from app.database import engine, Base
 from app.routers import (
     auth, users, production, safety, equipment,
     laboratory, report, energy, document, material,
-    performance, system
+    performance, system, schedule
 )
 
 # 配置日志
@@ -48,6 +48,7 @@ app.include_router(document.router)
 app.include_router(material.router)
 app.include_router(performance.router)
 app.include_router(system.router)
+app.include_router(schedule.router)
 
 
 @app.get("/")

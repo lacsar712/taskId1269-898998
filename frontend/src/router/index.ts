@@ -63,6 +63,12 @@ const router = createRouter({
               name: 'AlarmList',
               component: () => import('@/views/production/AlarmList.vue'),
               meta: { title: '异常告警列表' }
+            },
+            {
+              path: 'schedule',
+              name: 'TeamSchedule',
+              component: () => import('@/views/production/TeamSchedule.vue'),
+              meta: { title: '班组排班表' }
             }
           ]
         },

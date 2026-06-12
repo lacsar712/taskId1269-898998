@@ -143,3 +143,25 @@ export const systemApi = {
   createBackup: () => request.post('/system/backup'),
   getBackupList: () => request.get('/system/backup/list')
 }
+
+// 排班管理接口
+export const scheduleApi = {
+  getTeams: (params?: any) => request.get('/schedule/teams', { params }),
+  createTeam: (data: any) => request.post('/schedule/teams', data),
+  updateTeam: (id: number, data: any) => request.put(`/schedule/teams/${id}`, data),
+  deleteTeam: (id: number) => request.delete(`/schedule/teams/${id}`),
+  getTeamMembers: (teamId: number) => request.get(`/schedule/teams/${teamId}/members`),
+  addTeamMember: (data: any) => request.post('/schedule/teams/members', data),
+  removeTeamMember: (memberId: number) => request.delete(`/schedule/teams/members/${memberId}`),
+  getWeeklySchedule: (teamId: number, weekStart: string) => 
+    request.get(`/schedule/shift/${teamId}`, { params: { week_start: weekStart } }),
+  getScheduleMatrix: (teamId: number, weekStart: string) => 
+    request.get(`/schedule/shift/matrix/${teamId}`, { params: { week_start: weekStart } }),
+  createShift: (data: any) => request.post('/schedule/shift', data),
+  updateShift: (id: number, data: any) => request.put(`/schedule/shift/${id}`, data),
+  deleteShift: (id: number) => request.delete(`/schedule/shift/${id}`),
+  batchCreateShift: (data: any) => request.post('/schedule/shift/batch', data),
+  copyWeekSchedule: (data: any) => request.post('/schedule/shift/week-copy', data),
+  getUserMonthlyStats: (userId: number, month: string) => 
+    request.get(`/schedule/user/${userId}/monthly-stats`, { params: { month } })
+}
