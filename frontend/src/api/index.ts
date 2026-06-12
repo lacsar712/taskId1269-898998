@@ -185,3 +185,14 @@ export const workorderApi = {
   getById: (id: number) => request.get(`/workorders/${id}`),
   updateStatus: (id: number, data: any) => request.put(`/workorders/${id}/status`, data)
 }
+
+// 消息通知接口
+export const messageApi = {
+  getList: (params?: any) => request.get('/messages', { params }),
+  getRecent: (limit?: number) => request.get('/messages/recent', { params: { limit } }),
+  getUnreadCount: () => request.get('/messages/unread-count'),
+  markRead: (id: number) => request.put(`/messages/${id}/read`),
+  markAllRead: (messageType?: string) => request.put('/messages/read-all', null, { params: { message_type: messageType } }),
+  create: (data: any) => request.post('/messages', data),
+  delete: (id: number) => request.delete(`/messages/${id}`)
+}

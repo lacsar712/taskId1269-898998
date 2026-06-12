@@ -209,4 +209,59 @@ INSERT INTO `system_configs` (`config_key`, `config_value`, `config_type`, `desc
 ('report.auto_generate', 'true', 'report', '是否自动生成日报', 1),
 ('report.generate_time', '08:00', 'report', '日报生成时间', 1);
 
+-- ----------------------------
+-- 消息表
+-- ----------------------------
+DROP TABLE IF EXISTS `messages`;
+CREATE TABLE `messages` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `title` varchar(200) NOT NULL COMMENT '消息标题',
+  `content` text COMMENT '消息内容',
+  `summary` varchar(500) COMMENT '消息摘要',
+  `message_type` enum('alarm','approval','workorder','announcement') NOT NULL COMMENT '消息类型',
+  `priority` enum('low','medium','high','urgent') NOT NULL DEFAULT 'medium' COMMENT '优先级',
+  `sender_id` int DEFAULT NULL COMMENT '发送人ID',
+  `sender_name` varchar(50) DEFAULT NULL COMMENT '发送人姓名',
+  `related_type` varchar(50) DEFAULT NULL COMMENT '关联业务类型',
+  `related_id` int DEFAULT NULL COMMENT '关联业务ID',
+  `related_url` varchar(500) DEFAULT NULL COMMENT '关联跳转URL',
+  `is_global` tinyint(1) DEFAULT '0' COMMENT '是否全局消息',
+  `target_user_ids` text COMMENT '目标用户ID列表(逗号分隔)',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_message_type` (`message_type`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='消息表';
+
+-- 初始化示例消息数据
+INSERT INTO `messages` (`title`, `content`, `summary`, `message_type`, `priority`, `sender_name`, `related_type`, `related_id`, `related_url`, `is_global`, `target_user_ids`, `created_at`) VALUES
+('出水COD超标告警', '检测到出水COD浓度为35mg/L，超过排放标准30mg/L，请及时处理。', '出水COD浓度超标，需要立即处理', 'alarm', 'urgent', '系统监测', 'alarm', 1, '/production/alarm', 1, NULL, '2024-01-15 10:30:00'),
+('作业许可审批待处理', '您有一条新的作业许可申请等待审批，申请人：张三，作业类型：高处作业。', '作业许可审批待处理', 'approval', 'high', '张三', 'permit', 1, '/safety/permit', 0, '1,2', '2024-01-15 09:15:00'),
+('新工单指派', '您被指派处理新的工单：曝气风机#1异常振动检查，工单编号：WO20240115001。', '新工单：曝气风机#1异常振动检查', 'workorder', 'high', '李四', 'workorder', 1, '/workorder-center', 0, '2,3', '2024-01-15 08:45:00'),
+('系统维护公告', '系统将于2024年01月20日22:00-24:00进行例行维护，期间可能影响部分功能使用，请提前做好相关工作安排。', '系统将于1月20日晚进行例行维护', 'announcement', 'medium', '系统管理员', NULL, NULL, NULL, 1, NULL, '2024-01-15 08:00:00'),
+('生化池DO偏低告警', '生化池溶解氧浓度为1.2mg/L，低于设定阈值1.5mg/L，请检查曝气系统运行状态。', '生化池DO浓度偏低，需要检查曝气系统', 'alarm', 'high', '系统监测', 'alarm', 2, '/production/alarm', 1, NULL, '2024-01-14 16:20:00'),
+('设备维护提醒', '刮泥机设备维护时间已到，请安排维护人员进行定期维护保养。', '刮泥机需要进行定期维护', 'workorder', 'medium', '系统提醒', 'equipment', 7, '/equipment/maintenance', 0, '2,5', '2024-01-14 14:00:00'),
+('月度绩效考核通知', '2024年1月绩效考核已开始，请各部门于1月25日前完成绩效数据填报工作。', '1月绩效考核已开始，请按时填报', 'announcement', 'medium', '人力资源部', NULL, NULL, NULL, 1, NULL, '2024-01-14 10:00:00'),
+('安全培训审批通过', '您提交的安全培训申请已通过审批，培训时间：2024年01月18日14:00-16:00。', '安全培训申请已通过审批', 'approval', 'medium', '赵六', 'training', 1, '/safety/training', 0, '3,4', '2024-01-13 15:30:00');
+
+-- ----------------------------
+-- 用户消息已读状态表
+-- ----------------------------
+DROP TABLE IF EXISTS `user_message_reads`;
+CREATE TABLE `user_message_reads` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `user_id` int NOT NULL COMMENT '用户ID',
+  `message_id` int NOT NULL COMMENT '消息ID',
+  `is_read` tinyint(1) DEFAULT '0' COMMENT '是否已读',
+  `read_at` datetime DEFAULT NULL COMMENT '阅读时间',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_message` (`user_id`, `message_id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_message_id` (`message_id`),
+  KEY `idx_is_read` (`is_read`),
+  CONSTRAINT `fk_user_message_reads_message` FOREIGN KEY (`message_id`) REFERENCES `messages` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户消息已读状态表';
+
 SET FOREIGN_KEY_CHECKS = 1;

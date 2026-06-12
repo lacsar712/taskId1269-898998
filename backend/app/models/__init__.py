@@ -29,6 +29,7 @@ from app.models.performance import (
 )
 from app.models.system import SystemConfig, OperationLog, Interface
 from app.models.knowledge import KnowledgeCategory, KnowledgeArticle, KnowledgeFeedback
+from app.models.message import Message, UserMessageRead, MessageType, MessagePriority
 
 __all__ = [
     'User', 'Role',
@@ -47,5 +48,6 @@ __all__ = [
     'OutboundRecord', 'Inventory', 'Supplier',
     'PerformanceIndicator', 'PerformanceData', 'PerformanceResult',
     'SystemConfig', 'OperationLog', 'Interface',
-    'KnowledgeCategory', 'KnowledgeArticle', 'KnowledgeFeedback'
+    'KnowledgeCategory', 'KnowledgeArticle', 'KnowledgeFeedback',
+    'Message', 'UserMessageRead', 'MessageType', 'MessagePriority'
 ]

@@ -28,6 +28,13 @@ const router = createRouter({
           component: () => import('@/views/WorkOrderCenter.vue'),
           meta: { title: '统一工单中心', icon: 'icon-unordered-list' }
         },
+        // 消息中心
+        {
+          path: 'message-center',
+          name: 'MessageCenter',
+          component: () => import('@/views/MessageCenter.vue'),
+          meta: { title: '消息中心', icon: 'icon-notification', hidden: true }
+        },
         // 生产管理
         {
           path: 'production',

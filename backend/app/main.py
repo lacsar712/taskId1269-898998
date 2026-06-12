@@ -5,9 +5,10 @@ from app.database import engine, Base, SessionLocal
 from app.routers import (
     auth, users, production, safety, equipment,
     laboratory, report, energy, document, material,
-    performance, system, schedule, knowledge
+    performance, system, schedule, knowledge, message
 )
 from app.routers.knowledge import init_default_categories
+from app.routers.message import init_sample_messages
 
 # 配置日志
 logging.basicConfig(
@@ -23,10 +24,12 @@ Base.metadata.create_all(bind=engine)
 try:
     db = SessionLocal()
     init_default_categories(db)
+    init_sample_messages(db)
     db.close()
     logger.info("知识库默认数据初始化完成")
+    logger.info("示例消息数据初始化完成")
 except Exception as e:
-    logger.error(f"知识库默认数据初始化失败: {e}")
+    logger.error(f"初始化数据失败: {e}")
 
 app = FastAPI(
     title="污水处理厂智能管理系统",
@@ -60,6 +63,7 @@ app.include_router(material.router)
 app.include_router(performance.router)
 app.include_router(system.router)
 app.include_router(schedule.router)
+app.include_router(message.router)
 
 
 @app.get("/")

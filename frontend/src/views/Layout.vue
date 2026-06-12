@@ -8,6 +8,7 @@
       </div>
       <div class="header-right">
         <a-space :size="16">
+          <MessageBell ref="messageBellRef" />
           <a-dropdown trigger="click">
             <a-space style="cursor: pointer; color: #fff;">
               <a-avatar :size="32" style="background-color: #14C9C9;">
@@ -199,10 +200,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import MessageBell from '@/components/MessageBell.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const messageBellRef = ref()
 
 const collapsed = ref(false)
 const selectedKeys = ref<string[]>(['dashboard'])
