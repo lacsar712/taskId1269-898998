@@ -226,3 +226,17 @@ export const fieldDataApi = {
   getRecordById: (id: number) => request.get(`/field-data/records/${id}`),
   createRecord: (data: any) => request.post('/field-data/records', data)
 }
+
+// 视频巡检点位接口
+export const videoInspectionApi = {
+  getCameraPoints: (params?: any) => request.get('/safety/video-camera-points', { params }),
+  getAllCameraPoints: () => request.get('/safety/video-camera-points/all'),
+  createCameraPoint: (data: any) => request.post('/safety/video-camera-points', data),
+  updateCameraPoint: (id: number, data: any) => request.put(`/safety/video-camera-points/${id}`, data),
+  deleteCameraPoint: (id: number) => request.delete(`/safety/video-camera-points/${id}`),
+  getInspectionRecords: (params?: any) => request.get('/safety/video-inspection/records', { params }),
+  getAbnormalList: (params?: any) => request.get('/safety/video-inspection/abnormal-list', { params }),
+  createInspectionRecord: (data: any) => request.post('/safety/video-inspection/records', data),
+  updateHandleStatus: (id: number, data: any) => request.put(`/safety/video-inspection/records/${id}/handle-status`, data),
+  getStatistics: () => request.get('/safety/video-inspection/statistics')
+}

@@ -10,6 +10,7 @@ from app.routers import (
 )
 from app.routers.knowledge import init_default_categories
 from app.routers.message import init_sample_messages
+from app.routers.safety import init_default_video_camera_points
 
 # 配置日志
 logging.basicConfig(
@@ -26,9 +27,11 @@ try:
     db = SessionLocal()
     init_default_categories(db)
     init_sample_messages(db)
+    init_default_video_camera_points(db)
     db.close()
     logger.info("知识库默认数据初始化完成")
     logger.info("示例消息数据初始化完成")
+    logger.info("视频巡检点位默认数据初始化完成")
 except Exception as e:
     logger.error(f"初始化数据失败: {e}")
 

@@ -113,3 +113,43 @@ class WorkPermit(Base):
     approve_time = Column(DateTime)
     status = Column(String(20), default="pending")  # pending, approved, rejected, completed
     created_at = Column(DateTime, server_default=func.now())
+
+
+class VideoCameraPoint(Base):
+    """视频监控摄像头点位"""
+    __tablename__ = "video_camera_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    point_no = Column(String(50), unique=True, nullable=False)
+    point_name = Column(String(100), nullable=False)
+    install_location = Column(String(200))
+    coverage_area = Column(String(200))
+    device_model = Column(String(100))
+    online_status = Column(String(20), default="online")  # online, offline, maintenance
+    ip_address = Column(String(50))
+    responsible_person = Column(String(50))
+    install_date = Column(Date)
+    status = Column(String(20), default="active")  # active, inactive
+    remark = Column(Text)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class VideoInspectionRecord(Base):
+    """视频巡检记录"""
+    __tablename__ = "video_inspection_records"
+
+    id = Column(Integer, primary_key=True, index=True)
+    record_no = Column(String(50), unique=True, nullable=False)
+    camera_point_id = Column(Integer, nullable=False)
+    camera_point_name = Column(String(100))
+    inspector_id = Column(Integer)
+    inspector_name = Column(String(50))
+    inspection_time = Column(DateTime, nullable=False)
+    result = Column(String(20), default="normal")  # normal, abnormal
+    severity = Column(String(20))  # mild, moderate, severe, critical (异常时的严重程度)
+    remark = Column(Text)
+    abnormal_description = Column(Text)
+    handle_status = Column(String(20), default="pending")  # pending, handling, resolved, closed
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

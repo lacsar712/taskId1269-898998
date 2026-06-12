@@ -80,6 +80,7 @@
             <template #icon><icon-safe /></template>
             <template #title>安全管理</template>
             <a-menu-item key="safety/inspection">安全巡检</a-menu-item>
+            <a-menu-item key="safety/video-inspection">视频巡检点位</a-menu-item>
             <a-menu-item key="safety/risk">风险管控</a-menu-item>
             <a-menu-item key="safety/emergency">应急管理</a-menu-item>
             <a-menu-item key="safety/training">安全培训</a-menu-item>

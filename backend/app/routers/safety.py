@@ -5,7 +5,11 @@ from datetime import datetime, date
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.user import User
-from app.models.safety import InspectionPlan, InspectionRecord, RiskPoint, EmergencyPlan, SafetyTraining, WorkPermit
+from app.models.safety import (
+    InspectionPlan, InspectionRecord, RiskPoint, EmergencyPlan, SafetyTraining, WorkPermit,
+    VideoCameraPoint, VideoInspectionRecord
+)
+from sqlalchemy import desc, and_
 from app.schemas.common import PaginatedResponse, MessageResponse
 from app.services.auth import get_current_active_user
 
@@ -385,3 +389,600 @@ def approve_work_permit(
     db.commit()
     
     return MessageResponse(message="审批完成")
+
+
+# ==================== 视频巡检点位 ====================
+
+class VideoCameraPointResponse(BaseModel):
+    id: int
+    point_no: str
+    point_name: str
+    install_location: Optional[str]
+    coverage_area: Optional[str]
+    device_model: Optional[str]
+    online_status: str
+    ip_address: Optional[str]
+    responsible_person: Optional[str]
+    install_date: Optional[date]
+    status: str
+    remark: Optional[str]
+    last_inspection_time: Optional[datetime] = None
+    last_inspector: Optional[str] = None
+    last_inspection_result: Optional[str] = None
+    created_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class VideoCameraPointCreate(BaseModel):
+    point_name: str
+    install_location: Optional[str] = None
+    coverage_area: Optional[str] = None
+    device_model: Optional[str] = None
+    online_status: str = "online"
+    ip_address: Optional[str] = None
+    responsible_person: Optional[str] = None
+    install_date: Optional[date] = None
+    remark: Optional[str] = None
+
+
+class VideoCameraPointUpdate(BaseModel):
+    point_name: Optional[str] = None
+    install_location: Optional[str] = None
+    coverage_area: Optional[str] = None
+    device_model: Optional[str] = None
+    online_status: Optional[str] = None
+    ip_address: Optional[str] = None
+    responsible_person: Optional[str] = None
+    install_date: Optional[date] = None
+    status: Optional[str] = None
+    remark: Optional[str] = None
+
+
+class VideoInspectionRecordResponse(BaseModel):
+    id: int
+    record_no: str
+    camera_point_id: int
+    camera_point_name: Optional[str]
+    inspector_name: Optional[str]
+    inspection_time: datetime
+    result: str
+    severity: Optional[str]
+    remark: Optional[str]
+    abnormal_description: Optional[str]
+    handle_status: str
+    created_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+class VideoInspectionRecordCreate(BaseModel):
+    camera_point_id: int
+    inspection_time: datetime
+    result: str = "normal"
+    severity: Optional[str] = None
+    remark: Optional[str] = None
+    abnormal_description: Optional[str] = None
+
+
+class VideoInspectionHandleUpdate(BaseModel):
+    handle_status: str
+
+
+@router.get("/video-camera-points", response_model=PaginatedResponse[VideoCameraPointResponse])
+def get_video_camera_points(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    keyword: Optional[str] = None,
+    online_status: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = db.query(VideoCameraPoint)
+    if keyword:
+        query = query.filter(
+            (VideoCameraPoint.point_name.like(f"%{keyword}%")) |
+            (VideoCameraPoint.install_location.like(f"%{keyword}%")) |
+            (VideoCameraPoint.point_no.like(f"%{keyword}%"))
+        )
+    if online_status:
+        query = query.filter(VideoCameraPoint.online_status == online_status)
+    if status:
+        query = query.filter(VideoCameraPoint.status == status)
+
+    total = query.count()
+    items = query.order_by(VideoCameraPoint.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+
+    result_items = []
+    for point in items:
+        last_record = db.query(VideoInspectionRecord).filter(
+            VideoInspectionRecord.camera_point_id == point.id
+        ).order_by(desc(VideoInspectionRecord.inspection_time)).first()
+
+        point_dict = {
+            "id": point.id,
+            "point_no": point.point_no,
+            "point_name": point.point_name,
+            "install_location": point.install_location,
+            "coverage_area": point.coverage_area,
+            "device_model": point.device_model,
+            "online_status": point.online_status,
+            "ip_address": point.ip_address,
+            "responsible_person": point.responsible_person,
+            "install_date": point.install_date,
+            "status": point.status,
+            "remark": point.remark,
+            "created_at": point.created_at,
+            "last_inspection_time": last_record.inspection_time if last_record else None,
+            "last_inspector": last_record.inspector_name if last_record else None,
+            "last_inspection_result": last_record.result if last_record else None
+        }
+        result_items.append(point_dict)
+
+    return PaginatedResponse(
+        items=result_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size
+    )
+
+
+@router.get("/video-camera-points/all", response_model=List[VideoCameraPointResponse])
+def get_all_video_camera_points(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    items = db.query(VideoCameraPoint).filter(VideoCameraPoint.status == "active").all()
+    return items
+
+
+@router.post("/video-camera-points", response_model=VideoCameraPointResponse)
+def create_video_camera_point(
+    data: VideoCameraPointCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    point_no = f"VCP{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    point = VideoCameraPoint(
+        point_no=point_no,
+        point_name=data.point_name,
+        install_location=data.install_location,
+        coverage_area=data.coverage_area,
+        device_model=data.device_model,
+        online_status=data.online_status,
+        ip_address=data.ip_address,
+        responsible_person=data.responsible_person,
+        install_date=data.install_date,
+        remark=data.remark
+    )
+    db.add(point)
+    db.commit()
+    db.refresh(point)
+    return point
+
+
+@router.put("/video-camera-points/{point_id}", response_model=VideoCameraPointResponse)
+def update_video_camera_point(
+    point_id: int,
+    data: VideoCameraPointUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    point = db.query(VideoCameraPoint).filter(VideoCameraPoint.id == point_id).first()
+    if not point:
+        raise HTTPException(status_code=404, detail="点位不存在")
+
+    update_data = data.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(point, key, value)
+
+    db.commit()
+    db.refresh(point)
+    return point
+
+
+@router.delete("/video-camera-points/{point_id}", response_model=MessageResponse)
+def delete_video_camera_point(
+    point_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    point = db.query(VideoCameraPoint).filter(VideoCameraPoint.id == point_id).first()
+    if not point:
+        raise HTTPException(status_code=404, detail="点位不存在")
+
+    point.status = "inactive"
+    db.commit()
+    return MessageResponse(message="删除成功")
+
+
+@router.get("/video-inspection/records", response_model=PaginatedResponse[VideoInspectionRecordResponse])
+def get_video_inspection_records(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    camera_point_id: Optional[int] = None,
+    result: Optional[str] = None,
+    severity: Optional[str] = None,
+    handle_status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = db.query(VideoInspectionRecord)
+    if camera_point_id:
+        query = query.filter(VideoInspectionRecord.camera_point_id == camera_point_id)
+    if result:
+        query = query.filter(VideoInspectionRecord.result == result)
+    if severity:
+        query = query.filter(VideoInspectionRecord.severity == severity)
+    if handle_status:
+        query = query.filter(VideoInspectionRecord.handle_status == handle_status)
+
+    total = query.count()
+
+    severity_order = {"critical": 0, "severe": 1, "moderate": 2, "mild": 3, None: 4}
+    items = query.order_by(
+        desc(VideoInspectionRecord.created_at)
+    ).offset((page - 1) * page_size).limit(page_size).all()
+
+    sorted_items = sorted(items, key=lambda x: (
+        severity_order.get(x.severity, 4),
+        -x.inspection_time.timestamp() if x.inspection_time else 0
+    ))
+
+    return PaginatedResponse(
+        items=sorted_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size
+    )
+
+
+@router.get("/video-inspection/abnormal-list", response_model=PaginatedResponse[VideoInspectionRecordResponse])
+def get_video_inspection_abnormal_list(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=100),
+    severity: Optional[str] = None,
+    handle_status: Optional[str] = None,
+    keyword: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    query = db.query(VideoInspectionRecord).filter(VideoInspectionRecord.result == "abnormal")
+    if severity:
+        query = query.filter(VideoInspectionRecord.severity == severity)
+    if handle_status:
+        query = query.filter(VideoInspectionRecord.handle_status == handle_status)
+    if keyword:
+        query = query.filter(
+            (VideoInspectionRecord.camera_point_name.like(f"%{keyword}%")) |
+            (VideoInspectionRecord.abnormal_description.like(f"%{keyword}%"))
+        )
+
+    total = query.count()
+    items = query.offset((page - 1) * page_size).limit(page_size).all()
+
+    severity_order = {"critical": 0, "severe": 1, "moderate": 2, "mild": 3}
+    sorted_items = sorted(items, key=lambda x: (
+        severity_order.get(x.severity, 99),
+        -x.inspection_time.timestamp() if x.inspection_time else 0
+    ))
+
+    return PaginatedResponse(
+        items=sorted_items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=(total + page_size - 1) // page_size
+    )
+
+
+@router.post("/video-inspection/records", response_model=VideoInspectionRecordResponse)
+def create_video_inspection_record(
+    data: VideoInspectionRecordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    record_no = f"VIR{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    camera_point = db.query(VideoCameraPoint).filter(VideoCameraPoint.id == data.camera_point_id).first()
+
+    handle_status = "pending" if data.result == "abnormal" else "closed"
+
+    record = VideoInspectionRecord(
+        record_no=record_no,
+        camera_point_id=data.camera_point_id,
+        camera_point_name=camera_point.point_name if camera_point else None,
+        inspector_id=current_user.id,
+        inspector_name=current_user.real_name or current_user.username,
+        inspection_time=data.inspection_time,
+        result=data.result,
+        severity=data.severity,
+        remark=data.remark,
+        abnormal_description=data.abnormal_description,
+        handle_status=handle_status
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@router.put("/video-inspection/records/{record_id}/handle-status", response_model=MessageResponse)
+def update_video_inspection_handle_status(
+    record_id: int,
+    data: VideoInspectionHandleUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    record = db.query(VideoInspectionRecord).filter(VideoInspectionRecord.id == record_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="巡检记录不存在")
+
+    record.handle_status = data.handle_status
+    db.commit()
+    return MessageResponse(message="状态更新成功")
+
+
+@router.get("/video-inspection/statistics")
+def get_video_inspection_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    total_points = db.query(VideoCameraPoint).filter(VideoCameraPoint.status == "active").count()
+    online_points = db.query(VideoCameraPoint).filter(
+        and_(VideoCameraPoint.status == "active", VideoCameraPoint.online_status == "online")
+    ).count()
+
+    today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_inspections = db.query(VideoInspectionRecord).filter(
+        VideoInspectionRecord.inspection_time >= today_start
+    ).count()
+
+    pending_abnormal = db.query(VideoInspectionRecord).filter(
+        and_(
+            VideoInspectionRecord.result == "abnormal",
+            VideoInspectionRecord.handle_status == "pending"
+        )
+    ).count()
+
+    total_abnormal = db.query(VideoInspectionRecord).filter(
+        VideoInspectionRecord.result == "abnormal"
+    ).count()
+
+    severity_counts = {
+        "critical": db.query(VideoInspectionRecord).filter(
+            and_(VideoInspectionRecord.result == "abnormal", VideoInspectionRecord.severity == "critical")
+        ).count(),
+        "severe": db.query(VideoInspectionRecord).filter(
+            and_(VideoInspectionRecord.result == "abnormal", VideoInspectionRecord.severity == "severe")
+        ).count(),
+        "moderate": db.query(VideoInspectionRecord).filter(
+            and_(VideoInspectionRecord.result == "abnormal", VideoInspectionRecord.severity == "moderate")
+        ).count(),
+        "mild": db.query(VideoInspectionRecord).filter(
+            and_(VideoInspectionRecord.result == "abnormal", VideoInspectionRecord.severity == "mild")
+        ).count()
+    }
+
+    return {
+        "total_points": total_points,
+        "online_points": online_points,
+        "offline_points": total_points - online_points,
+        "today_inspections": today_inspections,
+        "pending_abnormal": pending_abnormal,
+        "total_abnormal": total_abnormal,
+        "severity_counts": severity_counts
+    }
+
+
+def init_default_video_camera_points(db: Session):
+    count = db.query(VideoCameraPoint).count()
+    if count > 0:
+        return
+
+    sample_points = [
+        {
+            "point_name": "粗格栅间监控点",
+            "install_location": "厂区北区-粗格栅间",
+            "coverage_area": "粗格栅设备及周围通道",
+            "device_model": "海康威视DS-2CD3T46WD-I3",
+            "online_status": "online",
+            "ip_address": "192.168.1.101",
+            "responsible_person": "张工",
+            "remark": "24小时监控粗格栅运行状态"
+        },
+        {
+            "point_name": "进水泵房监控点",
+            "install_location": "厂区北区-进水泵房",
+            "coverage_area": "进水泵组及控制机柜",
+            "device_model": "海康威视DS-2CD3T46WD-I3",
+            "online_status": "online",
+            "ip_address": "192.168.1.102",
+            "responsible_person": "李工",
+            "remark": "监控进水泵运行情况"
+        },
+        {
+            "point_name": "生化池A区监控点",
+            "install_location": "厂区中区-生化池A区",
+            "coverage_area": "生化池曝气区及搅拌设备",
+            "device_model": "大华DH-IPC-HFW4433M-I1",
+            "online_status": "online",
+            "ip_address": "192.168.1.103",
+            "responsible_person": "王工",
+            "remark": "监控生化池曝气状态"
+        },
+        {
+            "point_name": "生化池B区监控点",
+            "install_location": "厂区中区-生化池B区",
+            "coverage_area": "生化池沉淀区及污泥回流",
+            "device_model": "大华DH-IPC-HFW4433M-I1",
+            "online_status": "offline",
+            "ip_address": "192.168.1.104",
+            "responsible_person": "王工",
+            "remark": "网络故障待维修"
+        },
+        {
+            "point_name": "二沉池监控点",
+            "install_location": "厂区南区-二沉池",
+            "coverage_area": "二沉池出水堰及刮泥机",
+            "device_model": "海康威视DS-2CD3T46WD-I5",
+            "online_status": "online",
+            "ip_address": "192.168.1.105",
+            "responsible_person": "赵工",
+            "remark": "监控二沉池出水情况"
+        },
+        {
+            "point_name": "污泥脱水间监控点",
+            "install_location": "厂区东区-污泥脱水间",
+            "coverage_area": "脱水机及污泥输送带",
+            "device_model": "海康威视DS-2CD2T46WD-I3",
+            "online_status": "online",
+            "ip_address": "192.168.1.106",
+            "responsible_person": "孙工",
+            "remark": "监控污泥脱水作业"
+        },
+        {
+            "point_name": "消毒池监控点",
+            "install_location": "厂区南区-消毒池",
+            "coverage_area": "紫外消毒设备及出水渠道",
+            "device_model": "大华DH-IPC-HFW2433M-I1",
+            "online_status": "maintenance",
+            "ip_address": "192.168.1.107",
+            "responsible_person": "赵工",
+            "remark": "定期维护中"
+        },
+        {
+            "point_name": "变电所监控点",
+            "install_location": "厂区西区-变电所",
+            "coverage_area": "高低压配电柜及变压器",
+            "device_model": "海康威视DS-2CD3T66WD-I3",
+            "online_status": "online",
+            "ip_address": "192.168.1.108",
+            "responsible_person": "周工",
+            "remark": "重点区域安全监控"
+        },
+        {
+            "point_name": "加药间监控点",
+            "install_location": "厂区中区-加药间",
+            "coverage_area": "PAC/PAM投加系统及储罐",
+            "device_model": "大华DH-IPC-HFW4433M-I2",
+            "online_status": "online",
+            "ip_address": "192.168.1.109",
+            "responsible_person": "李工",
+            "remark": "监控药剂投加情况"
+        },
+        {
+            "point_name": "厂区大门监控点",
+            "install_location": "厂区主入口",
+            "coverage_area": "大门通道及车辆进出",
+            "device_model": "海康威视DS-2CD3T46WD-I3",
+            "online_status": "online",
+            "ip_address": "192.168.1.110",
+            "responsible_person": "保安队",
+            "remark": "人员车辆出入监控"
+        }
+    ]
+
+    for i, p in enumerate(sample_points):
+        point_no = f"VCP{datetime.now().strftime('%Y%m%d')}{str(i+1).zfill(4)}"
+        point = VideoCameraPoint(
+            point_no=point_no,
+            point_name=p["point_name"],
+            install_location=p["install_location"],
+            coverage_area=p["coverage_area"],
+            device_model=p["device_model"],
+            online_status=p["online_status"],
+            ip_address=p["ip_address"],
+            responsible_person=p["responsible_person"],
+            remark=p["remark"]
+        )
+        db.add(point)
+    db.commit()
+
+    sample_records = [
+        {
+            "point_name": "粗格栅间监控点",
+            "inspection_time": datetime(2026, 6, 12, 9, 30, 0),
+            "result": "normal",
+            "remark": "画面清晰，设备运行正常"
+        },
+        {
+            "point_name": "生化池A区监控点",
+            "inspection_time": datetime(2026, 6, 12, 10, 15, 0),
+            "result": "abnormal",
+            "severity": "moderate",
+            "abnormal_description": "发现曝气不均匀，局部区域无气泡产生，疑似曝气头堵塞",
+            "remark": "已通知维修班，待处理"
+        },
+        {
+            "point_name": "二沉池监控点",
+            "inspection_time": datetime(2026, 6, 12, 11, 0, 0),
+            "result": "normal",
+            "remark": "出水清澈，刮泥机运转正常"
+        },
+        {
+            "point_name": "进水泵房监控点",
+            "inspection_time": datetime(2026, 6, 12, 14, 20, 0),
+            "result": "abnormal",
+            "severity": "severe",
+            "abnormal_description": "画面出现大量雪花噪点，疑似摄像头进水故障",
+            "remark": "严重影响监控效果，需紧急处理"
+        },
+        {
+            "point_name": "变电所监控点",
+            "inspection_time": datetime(2026, 6, 12, 15, 45, 0),
+            "result": "abnormal",
+            "severity": "critical",
+            "abnormal_description": "监控发现1号变压器附近有烟雾产生，疑似电气故障",
+            "remark": "已立即上报，启动应急预案"
+        },
+        {
+            "point_name": "污泥脱水间监控点",
+            "inspection_time": datetime(2026, 6, 12, 16, 30, 0),
+            "result": "abnormal",
+            "severity": "mild",
+            "abnormal_description": "摄像头画面轻微偏移，部分区域遮挡",
+            "remark": "下次维护时调整角度"
+        },
+        {
+            "point_name": "加药间监控点",
+            "inspection_time": datetime(2026, 6, 13, 8, 40, 0),
+            "result": "normal",
+            "remark": "药剂投加系统运行正常"
+        },
+        {
+            "point_name": "厂区大门监控点",
+            "inspection_time": datetime(2026, 6, 13, 9, 10, 0),
+            "result": "normal",
+            "remark": "人员车辆出入正常，无异常情况"
+        }
+    ]
+
+    camera_points = db.query(VideoCameraPoint).all()
+    point_map = {p.point_name: p for p in camera_points}
+
+    for i, r in enumerate(sample_records):
+        cp = point_map.get(r["point_name"])
+        if cp:
+            record_no = f"VIR{datetime.now().strftime('%Y%m%d')}{str(i+1).zfill(4)}"
+            handle_status = "pending" if r["result"] == "abnormal" else "closed"
+            record = VideoInspectionRecord(
+                record_no=record_no,
+                camera_point_id=cp.id,
+                camera_point_name=cp.point_name,
+                inspector_id=1,
+                inspector_name="系统管理员",
+                inspection_time=r["inspection_time"],
+                result=r["result"],
+                severity=r.get("severity"),
+                remark=r.get("remark"),
+                abnormal_description=r.get("abnormal_description"),
+                handle_status=handle_status
+            )
+            db.add(record)
+    db.commit()

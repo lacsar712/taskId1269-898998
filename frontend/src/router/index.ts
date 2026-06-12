@@ -122,6 +122,18 @@ const router = createRouter({
               name: 'WorkPermit',
               component: () => import('@/views/safety/WorkPermit.vue'),
               meta: { title: '作业许可' }
+            },
+            {
+              path: 'video-inspection',
+              name: 'VideoInspectionPoints',
+              component: () => import('@/views/safety/VideoInspectionPoints.vue'),
+              meta: { title: '视频巡检点位' }
+            },
+            {
+              path: 'video-abnormal',
+              name: 'VideoInspectionAbnormal',
+              component: () => import('@/views/safety/VideoInspectionAbnormal.vue'),
+              meta: { title: '视频巡检异常汇总', hidden: true }
             }
           ]
         },
