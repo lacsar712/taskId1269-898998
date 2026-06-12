@@ -21,6 +21,13 @@ const router = createRouter({
           component: () => import('@/views/Dashboard.vue'),
           meta: { title: '首页', icon: 'icon-dashboard' }
         },
+        // 统一工单中心
+        {
+          path: 'workorder-center',
+          name: 'WorkOrderCenter',
+          component: () => import('@/views/WorkOrderCenter.vue'),
+          meta: { title: '统一工单中心', icon: 'icon-unordered-list' }
+        },
         // 生产管理
         {
           path: 'production',

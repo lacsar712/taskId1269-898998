@@ -57,6 +57,11 @@
             <template #icon><icon-dashboard /></template>
             首页
           </a-menu-item>
+
+          <a-menu-item key="workorder-center">
+            <template #icon><icon-unordered-list /></template>
+            统一工单中心
+          </a-menu-item>
           
           <a-sub-menu key="production">
             <template #icon><icon-settings /></template>

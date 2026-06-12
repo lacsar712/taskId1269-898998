@@ -165,3 +165,11 @@ export const scheduleApi = {
   getUserMonthlyStats: (userId: number, month: string) => 
     request.get(`/schedule/user/${userId}/monthly-stats`, { params: { month } })
 }
+
+// 统一工单中心接口
+export const workorderApi = {
+  getStatistics: () => request.get('/workorders/statistics'),
+  getList: (params?: any) => request.get('/workorders', { params }),
+  getById: (id: number) => request.get(`/workorders/${id}`),
+  updateStatus: (id: number, data: any) => request.put(`/workorders/${id}/status`, data)
+}
