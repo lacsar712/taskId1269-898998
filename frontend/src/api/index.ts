@@ -110,6 +110,18 @@ export const documentApi = {
   getFavorites: () => request.get('/documents/favorites/list')
 }
 
+// 运维知识库接口
+export const knowledgeApi = {
+  getCategories: () => request.get('/knowledge/categories'),
+  createCategory: (data: any) => request.post('/knowledge/categories', null, { params: data }),
+  getArticles: (params?: any) => request.get('/knowledge/articles', { params }),
+  getArticleById: (id: number) => request.get(`/knowledge/articles/${id}`),
+  createArticle: (data: any) => request.post('/knowledge/articles', data),
+  submitFeedback: (id: number, data: any) => request.post(`/knowledge/articles/${id}/feedback`, data),
+  getHotArticles: (limit?: number) => request.get('/knowledge/hot/articles', { params: { limit } }),
+  getTags: () => request.get('/knowledge/tags')
+}
+
 // 物资管理接口
 export const materialApi = {
   getCategories: () => request.get('/materials/categories'),

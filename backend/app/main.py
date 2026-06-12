@@ -1,12 +1,13 @@
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.database import engine, Base
+from app.database import engine, Base, SessionLocal
 from app.routers import (
     auth, users, production, safety, equipment,
     laboratory, report, energy, document, material,
-    performance, system, schedule
+    performance, system, schedule, knowledge
 )
+from app.routers.knowledge import init_default_categories
 
 # 配置日志
 logging.basicConfig(
@@ -17,6 +18,15 @@ logger = logging.getLogger(__name__)
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
+
+# 初始化知识库默认数据
+try:
+    db = SessionLocal()
+    init_default_categories(db)
+    db.close()
+    logger.info("知识库默认数据初始化完成")
+except Exception as e:
+    logger.error(f"知识库默认数据初始化失败: {e}")
 
 app = FastAPI(
     title="污水处理厂智能管理系统",
@@ -45,6 +55,7 @@ app.include_router(laboratory.router)
 app.include_router(report.router)
 app.include_router(energy.router)
 app.include_router(document.router)
+app.include_router(knowledge.router)
 app.include_router(material.router)
 app.include_router(performance.router)
 app.include_router(system.router)

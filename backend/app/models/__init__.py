@@ -28,6 +28,7 @@ from app.models.performance import (
     PerformanceIndicator, PerformanceData, PerformanceResult
 )
 from app.models.system import SystemConfig, OperationLog, Interface
+from app.models.knowledge import KnowledgeCategory, KnowledgeArticle, KnowledgeFeedback
 
 __all__ = [
     'User', 'Role',
@@ -45,5 +46,6 @@ __all__ = [
     'Material', 'MaterialCategory', 'InboundRecord',
     'OutboundRecord', 'Inventory', 'Supplier',
     'PerformanceIndicator', 'PerformanceData', 'PerformanceResult',
-    'SystemConfig', 'OperationLog', 'Interface'
+    'SystemConfig', 'OperationLog', 'Interface',
+    'KnowledgeCategory', 'KnowledgeArticle', 'KnowledgeFeedback'
 ]

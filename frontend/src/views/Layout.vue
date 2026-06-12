@@ -138,6 +138,11 @@
             <a-menu-item key="document/recommend">常用文档推荐</a-menu-item>
           </a-sub-menu>
           
+          <a-menu-item key="knowledge/list">
+            <template #icon><icon-book /></template>
+            运维知识库
+          </a-menu-item>
+          
           <a-sub-menu key="material">
             <template #icon><icon-storage /></template>
             <template #title>物资管理</template>

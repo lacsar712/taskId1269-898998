@@ -331,6 +331,27 @@ const router = createRouter({
             }
           ]
         },
+        // 运维知识库
+        {
+          path: 'knowledge',
+          name: 'Knowledge',
+          redirect: '/knowledge/list',
+          meta: { title: '运维知识库', icon: 'icon-book' },
+          children: [
+            {
+              path: 'list',
+              name: 'KnowledgeList',
+              component: () => import('@/views/knowledge/KnowledgeList.vue'),
+              meta: { title: '知识库列表' }
+            },
+            {
+              path: 'article/:id',
+              name: 'KnowledgeDetail',
+              component: () => import('@/views/knowledge/KnowledgeDetail.vue'),
+              meta: { title: '文章详情', hidden: true }
+            }
+          ]
+        },
         // 物资管理
         {
           path: 'material',
