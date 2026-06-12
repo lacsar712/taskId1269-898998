@@ -164,6 +164,14 @@
             <a-menu-item key="performance/application">绩效应用</a-menu-item>
           </a-sub-menu>
           
+          <a-sub-menu key="field-data">
+            <template #icon><icon-edit /></template>
+            <template #title>现场数据填报</template>
+            <a-menu-item key="field-data/fill">数据填报</a-menu-item>
+            <a-menu-item key="field-data/record">记录查询</a-menu-item>
+            <a-menu-item key="field-data/template">模板管理</a-menu-item>
+          </a-sub-menu>
+          
           <a-sub-menu key="system">
             <template #icon><icon-settings /></template>
             <template #title>系统设置</template>

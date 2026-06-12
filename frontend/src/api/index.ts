@@ -196,3 +196,17 @@ export const messageApi = {
   create: (data: any) => request.post('/messages', data),
   delete: (id: number) => request.delete(`/messages/${id}`)
 }
+
+// 现场数据填报接口
+export const fieldDataApi = {
+  getTemplates: (params?: any) => request.get('/field-data/templates', { params }),
+  getAllActiveTemplates: (templateType?: string) => request.get('/field-data/templates/all', { params: { template_type: templateType } }),
+  getTemplateById: (id: number) => request.get(`/field-data/templates/${id}`),
+  createTemplate: (data: any) => request.post('/field-data/templates', data),
+  updateTemplate: (id: number, data: any) => request.put(`/field-data/templates/${id}`, data),
+  toggleTemplateStatus: (id: number) => request.put(`/field-data/templates/${id}/toggle-status`),
+  deleteTemplate: (id: number) => request.delete(`/field-data/templates/${id}`),
+  getRecords: (params?: any) => request.get('/field-data/records', { params }),
+  getRecordById: (id: number) => request.get(`/field-data/records/${id}`),
+  createRecord: (data: any) => request.post('/field-data/records', data)
+}

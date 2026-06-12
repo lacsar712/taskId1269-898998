@@ -30,6 +30,11 @@ from app.models.performance import (
 from app.models.system import SystemConfig, OperationLog, Interface
 from app.models.knowledge import KnowledgeCategory, KnowledgeArticle, KnowledgeFeedback
 from app.models.message import Message, UserMessageRead, MessageType, MessagePriority
+from app.models.field_data import (
+    FieldDataTemplate, FieldDataTemplateField,
+    FieldDataRecord, FieldDataRecordValue,
+    TemplateType, FieldType
+)
 
 __all__ = [
     'User', 'Role',
@@ -49,5 +54,8 @@ __all__ = [
     'PerformanceIndicator', 'PerformanceData', 'PerformanceResult',
     'SystemConfig', 'OperationLog', 'Interface',
     'KnowledgeCategory', 'KnowledgeArticle', 'KnowledgeFeedback',
-    'Message', 'UserMessageRead', 'MessageType', 'MessagePriority'
+    'Message', 'UserMessageRead', 'MessageType', 'MessagePriority',
+    'FieldDataTemplate', 'FieldDataTemplateField',
+    'FieldDataRecord', 'FieldDataRecordValue',
+    'TemplateType', 'FieldType'
 ]

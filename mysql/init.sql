@@ -264,4 +264,129 @@ CREATE TABLE `user_message_reads` (
   CONSTRAINT `fk_user_message_reads_message` FOREIGN KEY (`message_id`) REFERENCES `messages` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户消息已读状态表';
 
+-- ----------------------------
+-- 现场数据采集模板表
+-- ----------------------------
+DROP TABLE IF EXISTS `field_data_templates`;
+CREATE TABLE `field_data_templates` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(100) NOT NULL COMMENT '模板名称',
+  `code` varchar(50) NOT NULL COMMENT '模板编码',
+  `description` varchar(500) DEFAULT NULL COMMENT '模板描述',
+  `template_type` varchar(20) DEFAULT 'daily' COMMENT '模板类型：daily日报/shift班报/weekly周报/monthly月报',
+  `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用',
+  `created_by` int DEFAULT NULL COMMENT '创建人ID',
+  `created_by_name` varchar(50) DEFAULT NULL COMMENT '创建人姓名',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='现场数据采集模板表';
+
+-- 初始化示例模板
+INSERT INTO `field_data_templates` (`name`, `code`, `description`, `template_type`, `is_active`, `created_by`, `created_by_name`) VALUES
+('运行日报', 'DAILY_RUN', '每日运行数据填报，包含水质、工艺参数等核心数据', 'daily', 1, 1, '系统管理员'),
+('班报-早班', 'SHIFT_MORNING', '早班现场数据采集，8:00-16:00运行记录', 'shift', 1, 1, '系统管理员'),
+('班报-中班', 'SHIFT_AFTERNOON', '中班现场数据采集，16:00-24:00运行记录', 'shift', 1, 1, '系统管理员'),
+('班报-晚班', 'SHIFT_NIGHT', '晚班现场数据采集，0:00-8:00运行记录', 'shift', 1, 1, '系统管理员'),
+('水质周报', 'WEEKLY_WATER', '每周水质分析汇总报表', 'weekly', 0, 1, '系统管理员');
+
+-- ----------------------------
+-- 模板字段表
+-- ----------------------------
+DROP TABLE IF EXISTS `field_data_template_fields`;
+CREATE TABLE `field_data_template_fields` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `template_id` int NOT NULL COMMENT '模板ID',
+  `field_name` varchar(100) NOT NULL COMMENT '字段名称',
+  `field_code` varchar(50) NOT NULL COMMENT '字段编码',
+  `field_type` varchar(20) DEFAULT 'text' COMMENT '字段类型：number数字/text文本/select单选下拉',
+  `is_required` tinyint(1) DEFAULT '0' COMMENT '是否必填',
+  `default_value` varchar(500) DEFAULT NULL COMMENT '默认值',
+  `options` text COMMENT '下拉选项(JSON数组格式)',
+  `unit` varchar(20) DEFAULT NULL COMMENT '单位(数字类型使用)',
+  `sort_order` int DEFAULT '0' COMMENT '排序',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_template_id` (`template_id`),
+  CONSTRAINT `fk_template_fields` FOREIGN KEY (`template_id`) REFERENCES `field_data_templates` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='模板字段表';
+
+-- 初始化运行日报字段
+INSERT INTO `field_data_template_fields` (`template_id`, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `unit`, `sort_order`) VALUES
+(1, '进水COD', 'COD_IN', 'number', 1, NULL, 'mg/L', 1),
+(1, '出水COD', 'COD_OUT', 'number', 1, NULL, 'mg/L', 2),
+(1, '进水氨氮', 'NH3N_IN', 'number', 1, NULL, 'mg/L', 3),
+(1, '出水氨氮', 'NH3N_OUT', 'number', 1, NULL, 'mg/L', 4),
+(1, '进水流量', 'FLOW_IN', 'number', 1, NULL, 'm³/h', 5),
+(1, '出水流量', 'FLOW_OUT', 'number', 1, NULL, 'm³/h', 6),
+(1, '溶解氧', 'DO', 'number', 0, '2.0', 'mg/L', 7),
+(1, 'MLSS', 'MLSS', 'number', 0, '4000', 'mg/L', 8),
+(1, 'pH值', 'PH', 'number', 0, '7.0', '', 9),
+(1, '运行状态', 'STATUS', 'select', 1, '正常', NULL, 10),
+(1, '值班人员', 'DUTY', 'text', 0, NULL, NULL, 11),
+(1, '设备巡检情况', 'INSPECTION', 'text', 0, NULL, NULL, 12);
+
+-- 初始化运行状态选项
+UPDATE `field_data_template_fields` SET `options` = '["正常","异常","停机"]' WHERE `field_code` = 'STATUS';
+
+-- 初始化早班班报字段
+INSERT INTO `field_data_template_fields` (`template_id`, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `unit`, `sort_order`) VALUES
+(2, '进水COD', 'COD_IN', 'number', 1, NULL, 'mg/L', 1),
+(2, '出水COD', 'COD_OUT', 'number', 1, NULL, 'mg/L', 2),
+(2, '溶解氧', 'DO', 'number', 1, NULL, 'mg/L', 3),
+(2, '曝气风机运行台数', 'FAN_COUNT', 'number', 1, '4', '台', 4),
+(2, '设备运行情况', 'EQUIPMENT', 'select', 1, '正常', NULL, 5),
+(2, '异常情况记录', 'ABNORMAL', 'text', 0, NULL, NULL, 6),
+(2, '交接班说明', 'HANDOVER', 'text', 0, NULL, NULL, 7);
+
+-- 初始化设备运行情况选项
+UPDATE `field_data_template_fields` SET `options` = '["正常","轻微异常","严重异常"]' WHERE `template_id` = 2 AND `field_code` = 'EQUIPMENT';
+
+-- 复制早班字段到中班和晚班
+INSERT INTO `field_data_template_fields` (`template_id`, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `options`, `unit`, `sort_order`)
+SELECT 3, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `options`, `unit`, `sort_order`
+FROM `field_data_template_fields` WHERE `template_id` = 2;
+
+INSERT INTO `field_data_template_fields` (`template_id`, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `options`, `unit`, `sort_order`)
+SELECT 4, `field_name`, `field_code`, `field_type`, `is_required`, `default_value`, `options`, `unit`, `sort_order`
+FROM `field_data_template_fields` WHERE `template_id` = 2;
+
+-- ----------------------------
+-- 填报记录表
+-- ----------------------------
+DROP TABLE IF EXISTS `field_data_records`;
+CREATE TABLE `field_data_records` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `template_id` int NOT NULL COMMENT '模板ID',
+  `record_date` datetime NOT NULL COMMENT '填报日期',
+  `shift` varchar(20) DEFAULT NULL COMMENT '班次：morning早班/afternoon中班/night晚班',
+  `operator_id` int DEFAULT NULL COMMENT '填报人ID',
+  `operator_name` varchar(50) DEFAULT NULL COMMENT '填报人姓名',
+  `remark` text COMMENT '备注',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_template_id` (`template_id`),
+  KEY `idx_record_date` (`record_date`),
+  CONSTRAINT `fk_record_template` FOREIGN KEY (`template_id`) REFERENCES `field_data_templates` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='填报记录表';
+
+-- ----------------------------
+-- 填报记录数据值表
+-- ----------------------------
+DROP TABLE IF EXISTS `field_data_record_values`;
+CREATE TABLE `field_data_record_values` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `record_id` int NOT NULL COMMENT '记录ID',
+  `field_id` int NOT NULL COMMENT '字段ID',
+  `field_name` varchar(100) NOT NULL COMMENT '字段名称(快照)',
+  `field_value` text COMMENT '字段值',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_record_id` (`record_id`),
+  KEY `idx_field_id` (`field_id`),
+  CONSTRAINT `fk_value_record` FOREIGN KEY (`record_id`) REFERENCES `field_data_records` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_value_field` FOREIGN KEY (`field_id`) REFERENCES `field_data_template_fields` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='填报记录数据值表';
+
 SET FOREIGN_KEY_CHECKS = 1;

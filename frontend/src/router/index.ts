@@ -437,6 +437,33 @@ const router = createRouter({
             }
           ]
         },
+        // 现场数据填报
+        {
+          path: 'field-data',
+          name: 'FieldData',
+          redirect: '/field-data/fill',
+          meta: { title: '现场数据填报', icon: 'icon-edit' },
+          children: [
+            {
+              path: 'fill',
+              name: 'DataFill',
+              component: () => import('@/views/field-data/DataFill.vue'),
+              meta: { title: '数据填报' }
+            },
+            {
+              path: 'record',
+              name: 'RecordQuery',
+              component: () => import('@/views/field-data/RecordQuery.vue'),
+              meta: { title: '记录查询' }
+            },
+            {
+              path: 'template',
+              name: 'TemplateManagement',
+              component: () => import('@/views/field-data/TemplateManagement.vue'),
+              meta: { title: '模板管理' }
+            }
+          ]
+        },
         // 系统设置
         {
           path: 'system',

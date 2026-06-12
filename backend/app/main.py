@@ -5,7 +5,8 @@ from app.database import engine, Base, SessionLocal
 from app.routers import (
     auth, users, production, safety, equipment,
     laboratory, report, energy, document, material,
-    performance, system, schedule, knowledge, message
+    performance, system, schedule, knowledge, message,
+    field_data
 )
 from app.routers.knowledge import init_default_categories
 from app.routers.message import init_sample_messages
@@ -64,6 +65,7 @@ app.include_router(performance.router)
 app.include_router(system.router)
 app.include_router(schedule.router)
 app.include_router(message.router)
+app.include_router(field_data.router)
 
 
 @app.get("/")
