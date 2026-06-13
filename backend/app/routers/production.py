@@ -5,9 +5,9 @@ from datetime import datetime
 from pydantic import BaseModel
 from app.database import get_db
 from app.models.user import User
-from app.models.production import ProcessParameter, ProductionPlan, ProductionLog, AbnormalAlarm, ProcessOptimization
 from app.schemas.common import PaginatedResponse, MessageResponse
 from app.services.auth import get_current_active_user
+from app.services import production_service
 
 router = APIRouter(prefix="/api/production", tags=["生产管理"])
 
@@ -117,10 +117,7 @@ def get_process_parameters(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    query = db.query(ProcessParameter)
-    if process_section:
-        query = query.filter(ProcessParameter.process_section == process_section)
-    return query.order_by(ProcessParameter.process_section).all()
+    return production_service.query_process_parameters(db, process_section=process_section)
 
 
 @router.get("/parameters/{param_id}", response_model=ProcessParameterResponse)
@@ -129,7 +126,7 @@ def get_process_parameter(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    param = db.query(ProcessParameter).filter(ProcessParameter.id == param_id).first()
+    param = production_service.get_process_parameter(db, param_id=param_id)
     if not param:
         raise HTTPException(status_code=404, detail="参数不存在")
     return param
@@ -144,20 +141,7 @@ def get_production_plans(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    query = db.query(ProductionPlan)
-    if status:
-        query = query.filter(ProductionPlan.status == status)
-    
-    total = query.count()
-    items = query.order_by(ProductionPlan.plan_date.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
-    )
+    return production_service.query_production_plans(db, page=page, page_size=page_size, status=status)
 
 
 @router.post("/plans", response_model=ProductionPlanResponse)
@@ -166,19 +150,14 @@ def create_production_plan(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    plan_no = f"PP{datetime.now().strftime('%Y%m%d%H%M%S')}"
-    plan = ProductionPlan(
-        plan_no=plan_no,
+    return production_service.create_production_plan(
+        db,
         plan_date=plan_data.plan_date,
         target_volume=plan_data.target_volume,
         operation_mode=plan_data.operation_mode,
         description=plan_data.description,
-        created_by=current_user.id
+        user_id=current_user.id,
     )
-    db.add(plan)
-    db.commit()
-    db.refresh(plan)
-    return plan
 
 
 # 生产日志
@@ -191,22 +170,7 @@ def get_production_logs(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    query = db.query(ProductionLog)
-    if log_type:
-        query = query.filter(ProductionLog.log_type == log_type)
-    if shift:
-        query = query.filter(ProductionLog.shift == shift)
-    
-    total = query.count()
-    items = query.order_by(ProductionLog.log_date.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    
-    return PaginatedResponse(
-        items=items,
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
-    )
+    return production_service.query_production_logs(db, page=page, page_size=page_size, log_type=log_type, shift=shift)
 
 
 @router.post("/logs", response_model=ProductionLogResponse)
@@ -215,18 +179,15 @@ def create_production_log(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    log = ProductionLog(
+    return production_service.create_production_log(
+        db,
         log_date=log_data.log_date,
         shift=log_data.shift,
         log_type=log_data.log_type,
         content=log_data.content,
-        operator_id=current_user.id,
-        operator_name=current_user.real_name or current_user.username
+        user_id=current_user.id,
+        user_name=current_user.real_name or current_user.username,
     )
-    db.add(log)
-    db.commit()
-    db.refresh(log)
-    return log
 
 
 # 异常告警
@@ -239,36 +200,7 @@ def get_abnormal_alarms(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    query = db.query(AbnormalAlarm)
-    if alarm_level:
-        query = query.filter(AbnormalAlarm.alarm_level == alarm_level)
-    if status:
-        query = query.filter(AbnormalAlarm.status == status)
-    
-    total = query.count()
-    items = query.order_by(AbnormalAlarm.alarm_time.desc()).offset((page - 1) * page_size).limit(page_size).all()
-    
-    return PaginatedResponse(
-        items=[AbnormalAlarmResponse(
-            id=a.id,
-            alarm_no=a.alarm_no,
-            alarm_type=a.alarm_type,
-            alarm_level=a.alarm_level if a.alarm_level else 'normal',
-            title=a.title,
-            description=a.description,
-            source=a.source,
-            current_value=a.current_value,
-            threshold_value=a.threshold_value,
-            status=a.status if a.status else 'pending',
-            handler_name=a.handler_name,
-            handle_time=a.handle_time,
-            alarm_time=a.alarm_time
-        ) for a in items],
-        total=total,
-        page=page,
-        page_size=page_size,
-        total_pages=(total + page_size - 1) // page_size
-    )
+    return production_service.query_abnormal_alarms(db, page=page, page_size=page_size, alarm_level=alarm_level, status=status)
 
 
 @router.put("/alarms/{alarm_id}/handle", response_model=MessageResponse)
@@ -278,17 +210,16 @@ def handle_alarm(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    alarm = db.query(AbnormalAlarm).filter(AbnormalAlarm.id == alarm_id).first()
-    if not alarm:
+    try:
+        production_service.resolve_alarm(
+            db,
+            alarm_id=alarm_id,
+            handle_result=data.handle_result,
+            user_id=current_user.id,
+            user_name=current_user.real_name or current_user.username,
+        )
+    except ValueError:
         raise HTTPException(status_code=404, detail="告警不存在")
-    
-    alarm.status = "resolved"
-    alarm.handler_id = current_user.id
-    alarm.handler_name = current_user.real_name or current_user.username
-    alarm.handle_time = datetime.now()
-    alarm.handle_result = data.handle_result
-    db.commit()
-    
     return MessageResponse(message="处理成功")
 
 
@@ -300,9 +231,4 @@ def get_process_optimizations(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    query = db.query(ProcessOptimization)
-    if optimization_type:
-        query = query.filter(ProcessOptimization.optimization_type == optimization_type)
-    if status:
-        query = query.filter(ProcessOptimization.status == status)
-    return query.order_by(ProcessOptimization.priority.desc()).all()
+    return production_service.query_process_optimizations(db, optimization_type=optimization_type, status=status)
