@@ -100,7 +100,7 @@
         <template #percentage="{ record }">
           <div style="display: flex; align-items: center; gap: 8px;">
             <div style="flex: 1;">
-              <a-progress :percent="record.percentage" :show-text="false" :stroke-color="#165DFF" />
+              <a-progress :percent="record.percentage" :show-text="false" stroke-color="#165DFF" />
             </div>
             <span style="min-width: 45px;">{{ record.percentage }}%</span>
           </div>

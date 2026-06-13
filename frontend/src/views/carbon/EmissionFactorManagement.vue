@@ -608,7 +608,7 @@ onMounted(() => {
 }
 
 .preview-value.increase {
-  color: '#F53F3F';
+  color: #F53F3F;
 }
 
 .preview-value.decrease {

@@ -25,7 +25,7 @@
         <div class="header-bg"></div>
         <div class="header-content">
           <div class="badge">
-            <template #icon><icon-safe /></template>
+            <icon-safe />
             应急演练签到
           </div>
           <h1 class="drill-title">{{ drillInfo.drill_name }}</h1>
@@ -37,7 +37,7 @@
 
       <div class="info-card">
         <div class="info-card-title">
-          <template #icon><icon-calendar /></template>
+          <icon-calendar />
           演练信息
         </div>
         <div class="info-list">
@@ -67,7 +67,7 @@
 
       <div class="form-card">
         <div class="form-card-title">
-          <template #icon><icon-edit /></template>
+          <icon-edit />
           请填写签到信息
         </div>
 

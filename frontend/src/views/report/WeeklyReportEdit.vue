@@ -17,7 +17,7 @@
 
     <a-card class="basic-info-card">
       <template #title>
-        <template #icon><icon-info-circle /></template>
+        <icon-info-circle />
         基本信息
       </template>
       <a-form :model="formData" layout="inline">
@@ -53,7 +53,7 @@
 
     <a-card v-if="summaryData" class="data-card">
       <template #title>
-        <template #icon><icon-bar-chart /></template>
+        <icon-bar-chart />
         本周业务数据概览
       </template>
       <div class="data-overview">

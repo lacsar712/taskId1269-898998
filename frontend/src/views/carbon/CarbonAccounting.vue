@@ -667,28 +667,28 @@ onMounted(() => {
 }
 
 .value-number.target {
-  color: '#722ED1';
+  color: #722ED1;
 }
 
 .value-number.budget-safe {
-  color: '#00B42A';
+  color: #00B42A;
 }
 
 .value-number.budget-risk {
-  color: '#F53F3F';
+  color: #F53F3F;
 }
 
 .value-number.down {
-  color: '#00B42A';
+  color: #00B42A;
 }
 
 .value-number.up {
-  color: '#F53F3F';
+  color: #F53F3F;
 }
 
 .value-unit {
   font-size: 12px;
-  color: '#86909c;
+  color: #86909c;
 }
 
 .progress-scale {
@@ -696,7 +696,7 @@ onMounted(() => {
   justify-content: space-between;
   margin-top: 8px;
   font-size: 11px;
-  color: '#86909c';
+  color: #86909c;
 }
 
 .stats-row {
@@ -763,11 +763,11 @@ onMounted(() => {
 }
 
 .stat-change.down {
-  color: '#00B42A';
+  color: #00B42A;
 }
 
 .stat-change.up {
-  color: '#F53F3F';
+  color: #F53F3F;
 }
 
 .trend-note {
