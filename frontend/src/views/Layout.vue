@@ -115,6 +115,7 @@
             <template #icon><icon-file /></template>
             <template #title>生产报表</template>
             <a-menu-item key="report/regular">常规报表</a-menu-item>
+            <a-menu-item key="report/weekly">运行周报</a-menu-item>
             <a-menu-item key="report/custom">自定义报表</a-menu-item>
             <a-menu-item key="report/visualization">数据可视化</a-menu-item>
             <a-menu-item key="report/trace">数据溯源</a-menu-item>

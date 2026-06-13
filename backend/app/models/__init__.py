@@ -15,7 +15,7 @@ from app.models.laboratory import (
     Sample, DetectionTask, DetectionData, 
     DetectionReport, QualityControl, Standard
 )
-from app.models.report import ReportTemplate, CustomReport
+from app.models.report import ReportTemplate, CustomReport, WeeklyReport
 from app.models.energy import (
     EnergyData, EnergySavingPlan, EnergyCost
 )
@@ -46,7 +46,7 @@ __all__ = [
     'MaintenanceRecord', 'Fault', 'SparePart',
     'Sample', 'DetectionTask', 'DetectionData',
     'DetectionReport', 'QualityControl', 'Standard',
-    'ReportTemplate', 'CustomReport',
+    'ReportTemplate', 'CustomReport', 'WeeklyReport',
     'EnergyData', 'EnergySavingPlan', 'EnergyCost',
     'Document', 'DocumentCategory',
     'Material', 'MaterialCategory', 'InboundRecord',

@@ -259,6 +259,24 @@ const router = createRouter({
               meta: { title: '常规报表' }
             },
             {
+              path: 'weekly',
+              name: 'WeeklyReportList',
+              component: () => import('@/views/report/WeeklyReportList.vue'),
+              meta: { title: '运行周报' }
+            },
+            {
+              path: 'weekly/edit',
+              name: 'WeeklyReportCreate',
+              component: () => import('@/views/report/WeeklyReportEdit.vue'),
+              meta: { title: '新建周报', hidden: true }
+            },
+            {
+              path: 'weekly/edit/:id',
+              name: 'WeeklyReportEdit',
+              component: () => import('@/views/report/WeeklyReportEdit.vue'),
+              meta: { title: '编辑周报', hidden: true }
+            },
+            {
               path: 'custom',
               name: 'CustomReport',
               component: () => import('@/views/report/CustomReport.vue'),

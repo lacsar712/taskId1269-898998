@@ -452,3 +452,69 @@ INSERT INTO `drill_check_ins` (`drill_id`, `participant_name`, `team_id`, `team_
 (2, '陈敏', 5, '安全环保班', '2026-06-15 13:59:00', 'link');
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ----------------------------
+-- 运行周报表
+-- ----------------------------
+DROP TABLE IF EXISTS `weekly_reports`;
+CREATE TABLE `weekly_reports` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `report_no` varchar(50) NOT NULL COMMENT '周报编号',
+  `report_name` varchar(200) NOT NULL COMMENT '周报名称',
+  `week_year` int NOT NULL COMMENT '年份',
+  `week_number` int NOT NULL COMMENT '周次',
+  `start_date` date NOT NULL COMMENT '周开始日期',
+  `end_date` date NOT NULL COMMENT '周结束日期',
+  `production_data` text COMMENT '生产数据JSON',
+  `water_quality_data` text COMMENT '水质数据JSON',
+  `alarm_data` text COMMENT '告警数据JSON',
+  `maintenance_data` text COMMENT '维保数据JSON',
+  `section_production` text COMMENT '生产运行情况(富文本)',
+  `section_water_quality` text COMMENT '水质达标情况(富文本)',
+  `section_alarm` text COMMENT '异常告警情况(富文本)',
+  `section_maintenance` text COMMENT '设备维保情况(富文本)',
+  `section_summary` text COMMENT '本周工作总结(富文本)',
+  `section_plan` text COMMENT '下周工作计划(富文本)',
+  `status` varchar(20) DEFAULT 'draft' COMMENT '状态:draft草稿/final定稿/archived归档',
+  `version` int DEFAULT 1 COMMENT '版本号',
+  `created_by` int DEFAULT NULL COMMENT '创建人ID',
+  `created_name` varchar(50) DEFAULT NULL COMMENT '创建人姓名',
+  `updated_by` int DEFAULT NULL COMMENT '更新人ID',
+  `updated_name` varchar(50) DEFAULT NULL COMMENT '更新人姓名',
+  `approved_by` int DEFAULT NULL COMMENT '审核人ID',
+  `approved_name` varchar(50) DEFAULT NULL COMMENT '审核人姓名',
+  `approved_at` datetime DEFAULT NULL COMMENT '审核时间',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_report_no` (`report_no`),
+  KEY `idx_week` (`week_year`, `week_number`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='运行周报表';
+
+-- 初始化示例周报数据
+INSERT INTO `weekly_reports` (`report_no`, `report_name`, `week_year`, `week_number`, `start_date`, `end_date`, `production_data`, `water_quality_data`, `alarm_data`, `maintenance_data`, `section_production`, `section_water_quality`, `section_alarm`, `section_maintenance`, `section_summary`, `section_plan`, `status`, `version`, `created_by`, `created_name`) VALUES
+('WR202623000001', '2026年第23周运行周报', 2026, 23, '2026-06-02', '2026-06-08', 
+'{"total_intake": 105000, "total_output": 102000, "daily_avg_intake": 15000, "daily_avg_output": 14571, "processing_rate": 97.1, "peak_intake": 16800, "valley_intake": 13200, "unit": "m³"}',
+'{"total_detection": 350, "qualified_count": 345, "qualified_rate": 98.57, "cod_avg_outlet": 26.8, "cod_standard": 50, "nh3n_avg_outlet": 3.2, "nh3n_standard": 8, "tp_avg_outlet": 0.35, "tp_standard": 0.5, "tn_avg_outlet": 12.5, "tn_standard": 15}',
+'{"total": 28, "urgent": 3, "warning": 12, "normal": 13, "resolved": 25, "pending": 3, "resolution_rate": 89.29, "types": [{"type": "水质超标", "count": 8}, {"type": "工艺参数异常", "count": 12}, {"type": "设备故障", "count": 5}, {"type": "工况异常", "count": 3}]}',
+'{"planned": 15, "completed": 14, "completion_rate": 93.33, "daily": 6, "weekly": 5, "monthly": 3, "overhaul": 1, "total_cost": 15800, "equipment_involved": 12}',
+'<h3>一、生产运行概况</h3><p>本周（2026-06-02 至 2026-06-08）全厂生产运行平稳，各项工艺参数控制良好。</p><ul><li>本周累计处理水量：<strong>105,000 m³</strong></li><li>日均处理水量：<strong>15,000 m³</strong></li><li>出水总量：<strong>102,000 m³</strong></li><li>水处理回收率：<strong>97.1%</strong></li></ul><p>本周水量波动正常，峰值出现在周三（约16,800 m³），谷值出现在周日（约13,200 m³）。</p>',
+'<h3>二、水质达标情况</h3><p>本周出水水质稳定达标，各项污染物去除效果良好。</p><ul><li>检测样品总数：<strong>350</strong> 个</li><li>达标样品数：<strong>345</strong> 个</li><li>水质达标率：<strong style="color: #00B42A;">98.57%</strong></li></ul><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;"><tr><th>检测指标</th><th>本周均值</th><th>排放标准</th><th>达标情况</th></tr><tr><td>COD (mg/L)</td><td>26.8</td><td>≤50</td><td style="color: #00B42A;">达标</td></tr><tr><td>NH₃-N (mg/L)</td><td>3.2</td><td>≤8</td><td style="color: #00B42A;">达标</td></tr><tr><td>TP (mg/L)</td><td>0.35</td><td>≤0.5</td><td style="color: #00B42A;">达标</td></tr><tr><td>TN (mg/L)</td><td>12.5</td><td>≤15</td><td style="color: #00B42A;">达标</td></tr></table>',
+'<h3>三、异常告警统计</h3><p>本周系统共产生告警 <strong>28</strong> 起，已处理 <strong>25</strong> 起，处理率 <strong>89.29%</strong>。</p><table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;"><tr><th>告警级别</th><th>数量</th><th>占比</th></tr><tr><td style="color: #F53F3F;">紧急</td><td>3</td><td>10.7%</td></tr><tr><td style="color: #FF7D00;">警告</td><td>12</td><td>42.9%</td></tr><tr><td style="color: #165DFF;">一般</td><td>13</td><td>46.4%</td></tr></table><p><strong>告警类型分布：</strong></p><ul><li>水质超标：8 起</li><li>工艺参数异常：12 起</li><li>设备故障：5 起</li><li>工况异常：3 起</li></ul>',
+'<h3>四、设备维保情况</h3><p>本周按计划完成各项设备维护保养工作，设备整体运行状态良好。</p><ul><li>计划维保任务：<strong>15</strong> 项</li><li>实际完成：<strong style="color: #00B42A;">14</strong> 项</li><li>完成率：<strong>93.33%</strong></li><li>涉及设备台数：<strong>12</strong> 台</li><li>维保总费用：<strong>¥15,800</strong></li></ul><p>维保分类明细：日常保养 6 项，定期保养 5 项，月度保养 3 项，大修 1 项。</p>',
+'<h3>五、本周工作总结</h3><ul><li>全厂生产运行平稳，工艺参数控制良好，各项指标达标</li><li>出水水质稳定达标，水质达标率保持较高水平</li><li>告警响应及时，重大异常均得到有效处理</li><li>设备维保工作按计划推进，设备运行率良好</li></ul>',
+'<h3>六、下周工作计划</h3><ul><li>继续加强工艺运行监控，确保出水水质稳定达标</li><li>按计划完成下周设备维护保养任务</li><li>组织开展班组安全培训和应急演练</li><li>跟进本周未完成告警的后续处理</li><li>做好汛期前的各项准备工作</li></ul>',
+'final', 2, 2, '张三'),
+('WR202624000002', '2026年第24周运行周报', 2026, 24, '2026-06-09', '2026-06-15', 
+'{"total_intake": 108500, "total_output": 105800, "daily_avg_intake": 15500, "daily_avg_output": 15114, "processing_rate": 97.5, "peak_intake": 17200, "valley_intake": 13800, "unit": "m³"}',
+'{"total_detection": 360, "qualified_count": 356, "qualified_rate": 98.89, "cod_avg_outlet": 25.5, "cod_standard": 50, "nh3n_avg_outlet": 3.0, "nh3n_standard": 8, "tp_avg_outlet": 0.32, "tp_standard": 0.5, "tn_avg_outlet": 11.8, "tn_standard": 15}',
+'{"total": 22, "urgent": 2, "warning": 9, "normal": 11, "resolved": 21, "pending": 1, "resolution_rate": 95.45, "types": [{"type": "水质超标", "count": 5}, {"type": "工艺参数异常", "count": 10}, {"type": "设备故障", "count": 4}, {"type": "工况异常", "count": 3}]}',
+'{"planned": 18, "completed": 18, "completion_rate": 100, "daily": 7, "weekly": 6, "monthly": 4, "overhaul": 1, "total_cost": 18500, "equipment_involved": 15}',
+'<h3>一、生产运行概况</h3><p>本周（2026-06-09 至 2026-06-15）全厂生产运行平稳，各项工艺参数控制良好。</p><ul><li>本周累计处理水量：<strong>108,500 m³</strong></li><li>日均处理水量：<strong>15,500 m³</strong></li><li>出水总量：<strong>105,800 m³</strong></li><li>水处理回收率：<strong>97.5%</strong></li></ul>',
+'<h3>二、水质达标情况</h3><p>本周出水水质稳定达标，各项污染物去除效果良好。</p><ul><li>检测样品总数：<strong>360</strong> 个</li><li>达标样品数：<strong>356</strong> 个</li><li>水质达标率：<strong style="color: #00B42A;">98.89%</strong></li></ul>',
+'<h3>三、异常告警统计</h3><p>本周系统共产生告警 <strong>22</strong> 起，已处理 <strong>21</strong> 起，处理率 <strong>95.45%</strong>。</p>',
+'<h3>四、设备维保情况</h3><p>本周按计划完成各项设备维护保养工作，设备整体运行状态良好。</p><ul><li>计划维保任务：<strong>18</strong> 项</li><li>实际完成：<strong style="color: #00B42A;">18</strong> 项</li><li>完成率：<strong>100%</strong></li></ul>',
+'<h3>五、本周工作总结</h3><ul><li>全厂生产运行平稳，各项指标达标</li><li>设备维保完成率100%，状态良好</li></ul>',
+'<h3>六、下周工作计划</h3><ul><li>继续加强工艺运行监控</li><li>做好汛期准备工作</li></ul>',
+'draft', 1, 2, '张三');

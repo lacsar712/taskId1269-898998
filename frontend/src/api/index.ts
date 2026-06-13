@@ -81,7 +81,17 @@ export const reportApi = {
   getCustomReports: (params?: any) => request.get('/reports/custom', { params }),
   createCustomReport: (data: any) => request.post('/reports/custom', data),
   getDailyStats: (params?: any) => request.get('/reports/statistics/daily', { params }),
-  getMonthlyStats: (params?: any) => request.get('/reports/statistics/monthly', { params })
+  getMonthlyStats: (params?: any) => request.get('/reports/statistics/monthly', { params }),
+  // 周报接口
+  getWeeklyReports: (params?: any) => request.get('/reports/weekly', { params }),
+  getWeeklyReport: (id: number) => request.get(`/reports/weekly/${id}`),
+  createWeeklyReport: (data: any) => request.post('/reports/weekly', data),
+  updateWeeklyReport: (id: number, data: any) => request.put(`/reports/weekly/${id}`, data),
+  deleteWeeklyReport: (id: number) => request.delete(`/reports/weekly/${id}`),
+  finalizeWeeklyReport: (id: number) => request.post(`/reports/weekly/${id}/finalize`),
+  getWeeklySummary: (params: any) => request.get('/reports/weekly/summarize', { params }),
+  exportWeeklyReportHtml: (id: number) => 
+    request.get(`/reports/weekly/${id}/export/html`, { responseType: 'blob' })
 }
 
 // 能耗管理接口
